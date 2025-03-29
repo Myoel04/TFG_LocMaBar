@@ -21,7 +21,7 @@ class MainActivity : ComponentActivity() {
             LocMaBarTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Greeting(
-                        name = "Android",
+                        name = "Maikel",
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
@@ -42,6 +42,6 @@ fun Greeting(name: String, modifier: Modifier = Modifier) {
 @Composable
 fun GreetingPreview() {
     LocMaBarTheme {
-        Greeting("Android")
+        Greeting("Maikel")
     }
 }
