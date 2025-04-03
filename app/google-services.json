@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "457813080496",
+    "project_id": "locmabar",
+    "storage_bucket": "locmabar.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:457813080496:android:a0bc46f3a4f17b633e3e75",
+        "android_client_info": {
+          "package_name": "com.company.locmabar"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBiqiFYt58mUOClyJNI-J-SdoRemXHNrpE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
