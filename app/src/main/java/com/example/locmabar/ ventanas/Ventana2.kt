@@ -1,7 +1,9 @@
 package com.example.locmabar.ventanas
 
 import android.Manifest
+import android.content.Context
 import android.location.Location
+import android.location.LocationManager
 import android.os.Looper
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -64,78 +66,60 @@ fun Ventana2(navController: NavController) {
 
     // Estado para manejar si el permiso fue denegado
     var permissionDenied by remember { mutableStateOf(false) }
-    
+
     // Permiso de ubicación
     val locationPermissionState = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION)
 
-    // Obtener ubicación si se concede el permiso
+    // Verificar si los servicios de ubicación están habilitados
+    val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+    val isGpsEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+    val isNetworkEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+
+    if (!isGpsEnabled && !isNetworkEnabled) {
+        locationFailed = true
+        println("Los servicios de ubicación están deshabilitados.")
+    }
+
+    // Solicitar ubicación si se concede el permiso
     LaunchedEffect(locationPermissionState.status) {
         if (locationPermissionState.status.isGranted) {
-            isLoading = true
-            permissionDenied = false
-            locationFailed = false
+            if (isGpsEnabled || isNetworkEnabled) {
+                isLoading = true
+                permissionDenied = false
+                locationFailed = false
 
-            try {
-                fusedLocationClient.lastLocation
-                    .addOnSuccessListener { location ->
-                        if (location != null) {
-                            userLat = location.latitude
-                            userLon = location.longitude
-                            println("Ubicación obtenida: lat=$userLat, lon=$userLon")
-                            fetchAllPlaces(db) { allPlaces ->
-                                val filteredPlaces = allPlaces.filter { place ->
-                                    calculateDistance(userLat!!, userLon!!, place.lat, place.lon) < 50.0
-                                }
-                                places = filteredPlaces
-                                isLoading = false
-                                if (filteredPlaces.isEmpty()) {
-                                    locationFailed = true
-                                    println("No se encontraron lugares cercanos")
-                                }
+                requestLocation(fusedLocationClient,
+                    onSuccess = { location ->
+                        userLat = location.latitude
+                        userLon = location.longitude
+                        println("Ubicación obtenida: lat=$userLat, lon=$userLon")
+
+                        fetchAllPlaces(db) { allPlaces ->
+                            val filteredPlaces = allPlaces.filter { place ->
+                                calculateDistance(userLat!!, userLon!!, place.lat, place.lon) < 50.0
                             }
-                        } else {
-                            println("Solicitando actualización de ubicación...")
-                            val locationRequest = LocationRequest.create().apply {
-                                priority = LocationRequest.PRIORITY_HIGH_ACCURACY
-                                interval = 10000
-                                fastestInterval = 5000
-                                numUpdates = 1
-                            }
-                            requestLocationUpdates(fusedLocationClient, locationRequest) { newLocation ->
-                                if (newLocation != null) {
-                                    userLat = newLocation.latitude
-                                    userLon = newLocation.longitude
-                                    println("Ubicación actualizada: lat=$userLat, lon=$userLon")
-                                    fetchAllPlaces(db) { allPlaces ->
-                                        val filteredPlaces = allPlaces.filter { place ->
-                                            calculateDistance(userLat!!, userLon!!, place.lat, place.lon) < 50.0
-                                        }
-                                        places = filteredPlaces
-                                        isLoading = false
-                                        if (filteredPlaces.isEmpty()) {
-                                            locationFailed = true
-                                        }
-                                    }
-                                } else {
-                                    println("No se pudo obtener la ubicación")
-                                    isLoading = false
-                                    locationFailed = true
-                                }
+                            places = filteredPlaces
+                            isLoading = false
+                            if (filteredPlaces.isEmpty()) {
+                                locationFailed = true
+                                println("No se encontraron lugares cercanos")
                             }
                         }
-                    }
-                    .addOnFailureListener {
-                        println("Error al obtener ubicación: $it")
+                    },
+                    onFailure = {
+                        println("Error al obtener ubicación")
                         isLoading = false
                         locationFailed = true
                     }
-            } catch (e: SecurityException) {
-                println("Error de permisos: $e")
+                )
+            } else {
+                println("Servicios de ubicación deshabilitados")
                 isLoading = false
                 locationFailed = true
             }
         } else {
-            if (!locationPermissionState.status.isGranted && locationPermissionState.status.shouldShowRationale.not()) {
+            if (!locationPermissionState.status.isGranted &&
+                !locationPermissionState.status.shouldShowRationale) {
                 permissionDenied = true
             }
             locationPermissionState.launchPermissionRequest()
@@ -149,7 +133,6 @@ fun Ventana2(navController: NavController) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text("Bares y Restaurantes Cercanos", fontSize = 20.sp)
-
         Spacer(modifier = Modifier.height(16.dp))
 
         if (isLoading) {
@@ -160,6 +143,14 @@ fun Ventana2(navController: NavController) {
             if (permissionDenied) {
                 Text(
                     text = "Permiso de ubicación denegado. Selecciona provincia y municipio manualmente.",
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+
+            if (locationFailed) {
+                Text(
+                    text = "No se pudo obtener la ubicación. Asegúrate de que los servicios de ubicación estén habilitados.",
                     fontSize = 14.sp,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
@@ -194,7 +185,6 @@ fun Ventana2(navController: NavController) {
                         }
                     }
                 }
-
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // Selector de municipio
@@ -224,7 +214,6 @@ fun Ventana2(navController: NavController) {
                         }
                     }
                 }
-
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Button(
@@ -272,25 +261,45 @@ fun Ventana2(navController: NavController) {
     }
 }
 
-private fun requestLocationUpdates(
+private fun requestLocation(
     fusedLocationClient: FusedLocationProviderClient,
-    locationRequest: LocationRequest,
-    callback: (Location?) -> Unit
+    onSuccess: (Location) -> Unit,
+    onFailure: () -> Unit
 ) {
     try {
-        fusedLocationClient.requestLocationUpdates(
-            locationRequest,
-            object : LocationCallback() {
-                override fun onLocationResult(locationResult: LocationResult) {
-                    val location = locationResult.lastLocation
-                    callback(location)
-                    fusedLocationClient.removeLocationUpdates(this)
-                }
-            },
-            Looper.getMainLooper()
-        )
+        val locationRequest = LocationRequest.create().apply {
+            priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+            interval = 10000
+            fastestInterval = 5000
+            numUpdates = 1
+        }
+
+        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+            if (location != null) {
+                onSuccess(location)
+            } else {
+                // Si lastLocation es null, solicitamos actualizaciones
+                fusedLocationClient.requestLocationUpdates(
+                    locationRequest,
+                    object : LocationCallback() {
+                        override fun onLocationResult(locationResult: LocationResult) {
+                            val newLocation = locationResult.lastLocation
+                            if (newLocation != null) {
+                                onSuccess(newLocation)
+                                fusedLocationClient.removeLocationUpdates(this)
+                            } else {
+                                onFailure()
+                            }
+                        }
+                    },
+                    Looper.getMainLooper()
+                )
+            }
+        }.addOnFailureListener {
+            onFailure()
+        }
     } catch (e: SecurityException) {
-        callback(null)
+        onFailure()
     }
 }
 
@@ -344,7 +353,12 @@ fun fetchAllPlaces(db: FirebaseFirestore, callback: (List<Place>) -> Unit) {
         }
 }
 
-fun fetchPlacesByMunicipality(db: FirebaseFirestore, province: String, municipality: String, callback: (List<Place>) -> Unit) {
+fun fetchPlacesByMunicipality(
+    db: FirebaseFirestore,
+    province: String,
+    municipality: String,
+    callback: (List<Place>) -> Unit
+) {
     db.collection("12345")
         .whereEqualTo("province", province.trim())
         .whereEqualTo("municipality", municipality.trim())

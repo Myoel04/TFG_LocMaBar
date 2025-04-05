@@ -3,7 +3,6 @@
     package="com.example.locmabar"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Permisos de ubicación -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 

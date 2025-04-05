@@ -24,14 +24,14 @@ import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun Login(modifier: Modifier = Modifier, navController: NavController) {
+fun Login(navController: NavController) {
     val auth = FirebaseAuth.getInstance()
     val email = remember { mutableStateOf("") }
     val password = remember { mutableStateOf("") }
     val errorMessage = remember { mutableStateOf<String?>(null) }
 
     Box(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
             .padding(16.dp)
@@ -39,10 +39,8 @@ fun Login(modifier: Modifier = Modifier, navController: NavController) {
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+            verticalArrangement = Arrangement.SpaceEvenly // Cambiado a SpaceEvenly para mejor distribución
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
-
             Text(
                 text = "¡Bienvenido!",
                 color = Color.Black,
@@ -77,16 +75,6 @@ fun Login(modifier: Modifier = Modifier, navController: NavController) {
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
                 )
-
-                // Mostrar mensaje de error si existe
-                errorMessage.value?.let { message ->
-                    Text(
-                        text = message,
-                        color = Color.Red,
-                        style = TextStyle(fontSize = 12.sp),
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    )
-                }
             }
 
             Column(
@@ -116,7 +104,7 @@ fun Login(modifier: Modifier = Modifier, navController: NavController) {
                 }
 
                 Button(
-                    onClick = { navController.navigate("ventana2") },
+                    onClick = { navController.navigate("registro") },
                     shape = RoundedCornerShape(100.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFDAB9)),
                     modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
@@ -124,8 +112,19 @@ fun Login(modifier: Modifier = Modifier, navController: NavController) {
                     Text("Registrarse", color = Color.Black, textAlign = TextAlign.Center, style = MaterialTheme.typography.labelLarge)
                 }
             }
+        }
 
-            Spacer(modifier = Modifier.height(16.dp))
+        // Mostrar mensaje de error con Toast
+        val contexto = LocalContext.current
+        LaunchedEffect(errorMessage.value) {
+            errorMessage.value?.let { message ->
+                Toast.makeText(
+                    contexto,
+                    message,
+                    Toast.LENGTH_SHORT
+                ).show()
+                errorMessage.value = null
+            }
         }
     }
 }
