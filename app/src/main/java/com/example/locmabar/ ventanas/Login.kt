@@ -27,7 +27,7 @@ import com.google.firebase.auth.FirebaseAuth
 fun Login(navController: NavController) {
     val auth = FirebaseAuth.getInstance()
     val email = remember { mutableStateOf("") }
-    val password = remember { mutableStateOf("") }
+    val contrasena = remember { mutableStateOf("") }
     val errorMessage = remember { mutableStateOf<String?>(null) }
 
     Box(
@@ -65,8 +65,8 @@ fun Login(navController: NavController) {
 
                 Text("CONTRASEÑA", color = Color.Black, style = TextStyle(fontSize = 12.sp))
                 TextField(
-                    value = password.value,
-                    onValueChange = { password.value = it },
+                    value = contrasena.value,
+                    onValueChange = { contrasena.value = it },
                     colors = TextFieldDefaults.colors(
                         unfocusedContainerColor = Color(0xFFF5F5F5),
                         focusedContainerColor = Color(0xFFF5F5F5)
@@ -83,11 +83,11 @@ fun Login(navController: NavController) {
             ) {
                 Button(
                     onClick = {
-                        if (email.value.isEmpty() || password.value.isEmpty()) {
+                        if (email.value.isEmpty() || contrasena.value.isEmpty()) {
                             errorMessage.value = "Por favor ingrese usuario y contraseña"
                             return@Button
                         }
-                        auth.signInWithEmailAndPassword(email.value, password.value)
+                        auth.signInWithEmailAndPassword(email.value, contrasena.value)
                             .addOnCompleteListener { task ->
                                 if (task.isSuccessful) {
                                     navController.navigate("ventana2")

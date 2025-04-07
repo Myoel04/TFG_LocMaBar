@@ -25,104 +25,100 @@ import com.google.android.gms.location.*
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlin.math.*
 
-// Modelo de datos para un lugar
-data class Place(
+//  datos para un bar o restaurante
+data class Lugar(
     val id: String,
-    val name: String,
-    val address: String,
-    val province: String,
-    val municipality: String,
-    val lat: Double,
-    val lon: Double
+    val nombre: String,
+    val direccion: String,
+    val provincia: String,
+    val municipio: String,
+    val latitud: Double,
+    val longitud: Double
 )
 
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun Ventana2(navController: NavController) {
-    val context = LocalContext.current
-    val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
-    val db = FirebaseFirestore.getInstance()
+fun Ventana2(controladorNavegacion: NavController) {
+    val contexto = LocalContext.current
+    val clienteUbicacionFusionada = LocationServices.getFusedLocationProviderClient(contexto)
+    val baseDatos = FirebaseFirestore.getInstance()
 
     // Estado para la ubicación del usuario
-    var userLat by remember { mutableStateOf<Double?>(null) }
-    var userLon by remember { mutableStateOf<Double?>(null) }
+    var latitudUsuario by remember { mutableStateOf<Double?>(null) }
+    var longitudUsuario by remember { mutableStateOf<Double?>(null) }
 
-    // Estado para indicar si la obtención de la ubicación falló
-    var locationFailed by remember { mutableStateOf(false) }
 
-    // Estado para los combobox
-    val provinces = listOf("Madrid", "Barcelona", "Valencia", "Sevilla", "Cuenca")
-    var selectedProvince by remember { mutableStateOf("") }
-    var expandedProvince by remember { mutableStateOf(false) }
-    var selectedMunicipality by remember { mutableStateOf("") }
-    var expandedMunicipality by remember { mutableStateOf(false) }
-    val municipalities = getMunicipalities(selectedProvince)
+    var falloUbicacion by remember { mutableStateOf(false) }
+
+    val provincias = listOf("Madrid", "Barcelona", "Valencia", "Sevilla", "Cuenca")
+    var provinciaSeleccionada by remember { mutableStateOf("") }
+    var expandirProvincia by remember { mutableStateOf(false) }
+    var municipioSeleccionado by remember { mutableStateOf("") }
+    var expandirMunicipio by remember { mutableStateOf(false) }
+    val municipios = obtenerMunicipios(provinciaSeleccionada)
 
     // Lista de lugares
-    var places by remember { mutableStateOf(listOf<Place>()) }
+    var lugares by remember { mutableStateOf(listOf<Lugar>()) }
 
-    // Estado de carga
-    var isLoading by remember { mutableStateOf(false) }
+    var cargando by remember { mutableStateOf(false) }
 
-    // Estado para manejar si el permiso fue denegado
-    var permissionDenied by remember { mutableStateOf(false) }
+    var permisoDenegado by remember { mutableStateOf(false) }
 
-    // Permiso de ubicación
-    val locationPermissionState = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION)
+    val estadoPermisoUbicacion = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION)
 
-    // Verificar si los servicios de ubicación están habilitados
-    val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-    val isGpsEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
-    val isNetworkEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+    // verifico si los servicios de ubicación están habilitados
+    val gestorUbicacion = contexto.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+    val gpsHabilitado = gestorUbicacion.isProviderEnabled(LocationManager.GPS_PROVIDER)
+    val redHabilitada = gestorUbicacion.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
 
-    if (!isGpsEnabled && !isNetworkEnabled) {
-        locationFailed = true
+    if (!gpsHabilitado && !redHabilitada) {
+        falloUbicacion = true
         println("Los servicios de ubicación están deshabilitados.")
     }
 
-    // Solicitar ubicación si se concede el permiso
-    LaunchedEffect(locationPermissionState.status) {
-        if (locationPermissionState.status.isGranted) {
-            if (isGpsEnabled || isNetworkEnabled) {
-                isLoading = true
-                permissionDenied = false
-                locationFailed = false
+    // solicitar ubicación si se concede el permiso
+    LaunchedEffect(estadoPermisoUbicacion.status) {
+        if (estadoPermisoUbicacion.status.isGranted) {
+            if (gpsHabilitado || redHabilitada) {
+                cargando = true
+                permisoDenegado = false
+                falloUbicacion = false
 
-                requestLocation(fusedLocationClient,
-                    onSuccess = { location ->
-                        userLat = location.latitude
-                        userLon = location.longitude
-                        println("Ubicación obtenida: lat=$userLat, lon=$userLon")
+                solicitarUbicacion(clienteUbicacionFusionada,
+                    onSuccess = { ubicacion ->
+                        latitudUsuario = ubicacion.latitude
+                        longitudUsuario = ubicacion.longitude
+                        println("Ubicación obtenida: lat=$latitudUsuario, lon=$longitudUsuario")
 
-                        fetchAllPlaces(db) { allPlaces ->
-                            val filteredPlaces = allPlaces.filter { place ->
-                                calculateDistance(userLat!!, userLon!!, place.lat, place.lon) < 50.0
+                        obtenerTodosLugares(baseDatos) { todosLugares ->
+                            val lugaresFiltrados = todosLugares.filter { lugar ->
+                                calcularDistancia(latitudUsuario!!, longitudUsuario!!, lugar.latitud, lugar.longitud) < 50.0
                             }
-                            places = filteredPlaces
-                            isLoading = false
-                            if (filteredPlaces.isEmpty()) {
-                                locationFailed = true
+                            lugares = lugaresFiltrados
+                            cargando = false
+                            if (lugaresFiltrados.isEmpty()) {
+                                falloUbicacion = true
                                 println("No se encontraron lugares cercanos")
                             }
                         }
                     },
                     onFailure = {
                         println("Error al obtener ubicación")
-                        isLoading = false
-                        locationFailed = true
+                        cargando = false
+                        falloUbicacion = true
                     }
                 )
             } else {
                 println("Servicios de ubicación deshabilitados")
-                isLoading = false
-                locationFailed = true
+                cargando = false
+                falloUbicacion = true
             }
         } else {
-            if (!locationPermissionState.status.isGranted &&
-                !locationPermissionState.status.shouldShowRationale) {
-                permissionDenied = true
+            if (!estadoPermisoUbicacion.status.isGranted &&
+                !estadoPermisoUbicacion.status.shouldShowRationale) {
+                permisoDenegado = true
             }
-            locationPermissionState.launchPermissionRequest()
+            estadoPermisoUbicacion.launchPermissionRequest()
         }
     }
 
@@ -135,12 +131,12 @@ fun Ventana2(navController: NavController) {
         Text("Bares y Restaurantes Cercanos", fontSize = 20.sp)
         Spacer(modifier = Modifier.height(16.dp))
 
-        if (isLoading) {
+        if (cargando) {
             CircularProgressIndicator()
             Spacer(modifier = Modifier.height(8.dp))
             Text("Cargando lugares...", fontSize = 14.sp)
         } else {
-            if (permissionDenied) {
+            if (permisoDenegado) {
                 Text(
                     text = "Permiso de ubicación denegado. Selecciona provincia y municipio manualmente.",
                     fontSize = 14.sp,
@@ -148,7 +144,7 @@ fun Ventana2(navController: NavController) {
                 )
             }
 
-            if (locationFailed) {
+            if (falloUbicacion) {
                 Text(
                     text = "No se pudo obtener la ubicación. Asegúrate de que los servicios de ubicación estén habilitados.",
                     fontSize = 14.sp,
@@ -156,30 +152,30 @@ fun Ventana2(navController: NavController) {
                 )
             }
 
-            if (userLat == null || userLon == null || locationFailed || places.isEmpty()) {
+            if (latitudUsuario == null || longitudUsuario == null || falloUbicacion || lugares.isEmpty()) {
                 // Selector de provincia
                 ExposedDropdownMenuBox(
-                    expanded = expandedProvince,
-                    onExpandedChange = { expandedProvince = !expandedProvince }
+                    expanded = expandirProvincia,
+                    onExpandedChange = { expandirProvincia = !expandirProvincia }
                 ) {
                     TextField(
-                        value = selectedProvince,
+                        value = provinciaSeleccionada,
                         onValueChange = {},
                         label = { Text("Provincia") },
                         readOnly = true,
                         modifier = Modifier.menuAnchor().fillMaxWidth()
                     )
                     ExposedDropdownMenu(
-                        expanded = expandedProvince,
-                        onDismissRequest = { expandedProvince = false }
+                        expanded = expandirProvincia,
+                        onDismissRequest = { expandirProvincia = false }
                     ) {
-                        provinces.forEach { province ->
+                        provincias.forEach { provincia ->
                             DropdownMenuItem(
-                                text = { Text(province) },
+                                text = { Text(provincia) },
                                 onClick = {
-                                    selectedProvince = province
-                                    selectedMunicipality = ""
-                                    expandedProvince = false
+                                    provinciaSeleccionada = provincia
+                                    municipioSeleccionado = ""
+                                    expandirProvincia = false
                                 }
                             )
                         }
@@ -189,26 +185,26 @@ fun Ventana2(navController: NavController) {
 
                 // Selector de municipio
                 ExposedDropdownMenuBox(
-                    expanded = expandedMunicipality,
-                    onExpandedChange = { expandedMunicipality = !expandedMunicipality }
+                    expanded = expandirMunicipio,
+                    onExpandedChange = { expandirMunicipio = !expandirMunicipio }
                 ) {
                     TextField(
-                        value = selectedMunicipality,
+                        value = municipioSeleccionado,
                         onValueChange = {},
                         label = { Text("Municipio") },
                         readOnly = true,
                         modifier = Modifier.menuAnchor().fillMaxWidth()
                     )
                     ExposedDropdownMenu(
-                        expanded = expandedMunicipality,
-                        onDismissRequest = { expandedMunicipality = false }
+                        expanded = expandirMunicipio,
+                        onDismissRequest = { expandirMunicipio = false }
                     ) {
-                        municipalities.forEach { municipality ->
+                        municipios.forEach { municipio ->
                             DropdownMenuItem(
-                                text = { Text(municipality) },
+                                text = { Text(municipio) },
                                 onClick = {
-                                    selectedMunicipality = municipality
-                                    expandedMunicipality = false
+                                    municipioSeleccionado = municipio
+                                    expandirMunicipio = false
                                 }
                             )
                         }
@@ -218,75 +214,74 @@ fun Ventana2(navController: NavController) {
 
                 Button(
                     onClick = {
-                        if (selectedProvince.isNotEmpty() && selectedMunicipality.isNotEmpty()) {
-                            isLoading = true
-                            fetchPlacesByMunicipality(db, selectedProvince, selectedMunicipality) { result ->
-                                places = result
-                                isLoading = false
-                                locationFailed = false
+                        if (provinciaSeleccionada.isNotEmpty() && municipioSeleccionado.isNotEmpty()) {
+                            cargando = true
+                            obtenerLugaresPorMunicipio(baseDatos, provinciaSeleccionada, municipioSeleccionado) { resultado ->
+                                lugares = resultado
+                                cargando = false
+                                falloUbicacion = false
                             }
                         }
                     },
-                    enabled = selectedProvince.isNotEmpty() && selectedMunicipality.isNotEmpty()
+                    enabled = provinciaSeleccionada.isNotEmpty() && municipioSeleccionado.isNotEmpty()
                 ) {
                     Text("Buscar")
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
-
-            // Lista de lugares
-            if (places.isNotEmpty()) {
+//lugares
+            if (lugares.isNotEmpty()) {
                 LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                    items(places) { place ->
+                    items(lugares) { lugar ->
                         Card(
                             modifier = Modifier
                                 .padding(8.dp)
                                 .fillMaxWidth()
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Text(place.name, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                                Text(lugar.nombre, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                                 Spacer(modifier = Modifier.height(4.dp))
-                                Text(place.address, fontSize = 14.sp)
+                                Text(lugar.direccion, fontSize = 14.sp)
                                 Spacer(modifier = Modifier.height(4.dp))
-                                Text("${place.municipality}, ${place.province}", fontSize = 12.sp)
+                                Text("${lugar.municipio}, ${lugar.provincia}", fontSize = 12.sp)
                             }
                         }
                     }
                 }
-            } else if (!isLoading && (userLat != null || (selectedProvince.isNotEmpty() && selectedMunicipality.isNotEmpty()))) {
+            } else if (!cargando && (latitudUsuario != null || (provinciaSeleccionada.isNotEmpty() && municipioSeleccionado.isNotEmpty()))) {
                 Text("No se encontraron lugares.", fontSize = 14.sp)
             }
         }
     }
 }
 
-private fun requestLocation(
-    fusedLocationClient: FusedLocationProviderClient,
+private fun solicitarUbicacion(
+    clienteUbicacionFusionada: FusedLocationProviderClient,
     onSuccess: (Location) -> Unit,
     onFailure: () -> Unit
 ) {
     try {
-        val locationRequest = LocationRequest.create().apply {
+        val solicitudUbicacion = LocationRequest.create().apply {
             priority = LocationRequest.PRIORITY_HIGH_ACCURACY
             interval = 10000
             fastestInterval = 5000
             numUpdates = 1
         }
 
-        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-            if (location != null) {
-                onSuccess(location)
+        clienteUbicacionFusionada.lastLocation.addOnSuccessListener { ubicacion ->
+            if (ubicacion != null) {
+                onSuccess(ubicacion)
             } else {
                 // Si lastLocation es null, solicitamos actualizaciones
-                fusedLocationClient.requestLocationUpdates(
-                    locationRequest,
+                clienteUbicacionFusionada.requestLocationUpdates(
+                    solicitudUbicacion,
                     object : LocationCallback() {
-                        override fun onLocationResult(locationResult: LocationResult) {
-                            val newLocation = locationResult.lastLocation
-                            if (newLocation != null) {
-                                onSuccess(newLocation)
-                                fusedLocationClient.removeLocationUpdates(this)
+                        override fun onLocationResult(resultadoUbicacion: LocationResult) {
+                            val nuevaUbicacion = resultadoUbicacion.lastLocation
+                            if (nuevaUbicacion != null) {
+                                onSuccess(nuevaUbicacion)
+                                clienteUbicacionFusionada.removeLocationUpdates(this)
                             } else {
                                 onFailure()
                             }
@@ -303,8 +298,8 @@ private fun requestLocation(
     }
 }
 
-fun getMunicipalities(province: String): List<String> {
-    return when (province) {
+fun obtenerMunicipios(provincia: String): List<String> {
+    return when (provincia) {
         "Madrid" -> listOf("Madrid", "Alcalá de Henares", "Getafe")
         "Barcelona" -> listOf("Barcelona", "Badalona", "Hospitalet")
         "Valencia" -> listOf("Valencia", "Torrent", "Gandía")
@@ -314,38 +309,38 @@ fun getMunicipalities(province: String): List<String> {
     }
 }
 
-private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
-    val r = 6371.0 // Radio de la Tierra en km
-    val dLat = Math.toRadians(lat2 - lat1)
-    val dLon = Math.toRadians(lon2 - lon1)
-    val a = sin(dLat / 2).pow(2) +
-            cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) * sin(dLon / 2).pow(2)
+private fun calcularDistancia(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+    val radioTierra = 6371.0 // Radio de la Tierra en km
+    val diferenciaLatitud = Math.toRadians(lat2 - lat1)
+    val diferenciaLongitud = Math.toRadians(lon2 - lon1)
+    val a = sin(diferenciaLatitud / 2).pow(2) +
+            cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) * sin(diferenciaLongitud / 2).pow(2)
     val c = 2 * atan2(sqrt(a), sqrt(1 - a))
-    return r * c
+    return radioTierra * c
 }
 
-fun fetchAllPlaces(db: FirebaseFirestore, callback: (List<Place>) -> Unit) {
-    db.collection("12345")
+fun obtenerTodosLugares(baseDatos: FirebaseFirestore, callback: (List<Lugar>) -> Unit) {
+    baseDatos.collection("12345")
         .get()
-        .addOnSuccessListener { result ->
-            val places = result.documents.mapNotNull { doc ->
+        .addOnSuccessListener { resultado ->
+            val lugares = resultado.documents.mapNotNull { documento ->
                 try {
-                    val latStr = doc.getString("lat") ?: "0.0"
-                    val lonStr = doc.getString("lon") ?: "0.0"
-                    Place(
-                        id = doc.id,
-                        name = doc.getString("name") ?: "",
-                        address = doc.getString("address") ?: "",
-                        province = doc.getString("province") ?: "",
-                        municipality = doc.getString("municipality") ?: "",
-                        lat = latStr.toDouble(),
-                        lon = lonStr.toDouble()
+                    val latitudStr = documento.getString("lat") ?: "0.0"
+                    val longitudStr = documento.getString("lon") ?: "0.0"
+                    Lugar(
+                        id = documento.id,
+                        nombre = documento.getString("name") ?: "",
+                        direccion = documento.getString("address") ?: "",
+                        provincia = documento.getString("province") ?: "",
+                        municipio = documento.getString("municipality") ?: "",
+                        latitud = latitudStr.toDouble(),
+                        longitud = longitudStr.toDouble()
                     )
                 } catch (e: Exception) {
                     null
                 }
             }
-            callback(places)
+            callback(lugares)
         }
         .addOnFailureListener {
             println("Error al obtener lugares: $it")
@@ -353,35 +348,35 @@ fun fetchAllPlaces(db: FirebaseFirestore, callback: (List<Place>) -> Unit) {
         }
 }
 
-fun fetchPlacesByMunicipality(
-    db: FirebaseFirestore,
-    province: String,
-    municipality: String,
-    callback: (List<Place>) -> Unit
+fun obtenerLugaresPorMunicipio(
+    baseDatos: FirebaseFirestore,
+    provincia: String,
+    municipio: String,
+    callback: (List<Lugar>) -> Unit
 ) {
-    db.collection("12345")
-        .whereEqualTo("province", province.trim())
-        .whereEqualTo("municipality", municipality.trim())
+    baseDatos.collection("12345")
+        .whereEqualTo("province", provincia.trim())
+        .whereEqualTo("municipality", municipio.trim())
         .get()
-        .addOnSuccessListener { result ->
-            val places = result.documents.mapNotNull { doc ->
+        .addOnSuccessListener { resultado ->
+            val lugares = resultado.documents.mapNotNull { documento ->
                 try {
-                    val latStr = doc.getString("lat") ?: "0.0"
-                    val lonStr = doc.getString("lon") ?: "0.0"
-                    Place(
-                        id = doc.id,
-                        name = doc.getString("name") ?: "",
-                        address = doc.getString("address") ?: "",
-                        province = doc.getString("province") ?: "",
-                        municipality = doc.getString("municipality") ?: "",
-                        lat = latStr.toDouble(),
-                        lon = lonStr.toDouble()
+                    val latitudStr = documento.getString("lat") ?: "0.0"
+                    val longitudStr = documento.getString("lon") ?: "0.0"
+                    Lugar(
+                        id = documento.id,
+                        nombre = documento.getString("name") ?: "",
+                        direccion = documento.getString("address") ?: "",
+                        provincia = documento.getString("province") ?: "",
+                        municipio = documento.getString("municipality") ?: "",
+                        latitud = latitudStr.toDouble(),
+                        longitud = longitudStr.toDouble()
                     )
                 } catch (e: Exception) {
                     null
                 }
             }
-            callback(places)
+            callback(lugares)
         }
         .addOnFailureListener {
             println("Error al filtrar lugares: $it")
