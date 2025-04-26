@@ -1,4 +1,4 @@
-package com.example.locmabar.ventanas
+package com.example.locmabar.vista
 
 import android.widget.Toast
 import androidx.compose.foundation.background

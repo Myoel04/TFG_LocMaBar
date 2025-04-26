@@ -1,11 +1,9 @@
-package com.example.locmabar.ventanas
+package com.example.locmabar.vista
 
 import android.Manifest
 import android.content.Context
 import android.content.Intent
-import android.location.Location
 import android.location.LocationManager
-import android.os.Looper
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -18,31 +16,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import com.example.locmabar.modelo.Lugar
+import com.example.locmabar.modelo.LugarRepository
+import com.example.locmabar.modelo.UbicacionService
+import com.example.locmabar.utils.calcularDistancia
+import com.example.locmabar.utils.obtenerMunicipios
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
-import com.google.android.gms.location.*
-import com.google.firebase.firestore.FirebaseFirestore
-import kotlin.math.*
-
-// datos para un bar o restaurante
-data class Lugar(
-    val id: String,
-    val nombre: String,
-    val direccion: String,
-    val provincia: String,
-    val municipio: String,
-    val latitud: Double,
-    val longitud: Double
-)
 
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun Ventana2(navController: NavHostController) {
     val contexto = LocalContext.current
-    val clienteUbicacionFusionada = LocationServices.getFusedLocationProviderClient(contexto)
-    val baseDatos = FirebaseFirestore.getInstance()
+    val ubicacionService = UbicacionService(contexto)
+    val lugarRepository = LugarRepository()
 
     // Estado para la ubicación del usuario
     var latitudUsuario by remember { mutableStateOf<Double?>(null) }
@@ -88,13 +77,13 @@ fun Ventana2(navController: NavHostController) {
                 permisoDenegado = false
                 falloUbicacion = false
 
-                solicitarUbicacion(clienteUbicacionFusionada,
+                ubicacionService.solicitarUbicacion(
                     onSuccess = { ubicacion ->
                         latitudUsuario = ubicacion.latitude
                         longitudUsuario = ubicacion.longitude
                         println("Ubicación obtenida: lat=$latitudUsuario, lon=$longitudUsuario")
 
-                        obtenerTodosLugares(baseDatos) { todosLugares ->
+                        lugarRepository.obtenerTodosLugares { todosLugares ->
                             val lugaresFiltrados = todosLugares.filter { lugar ->
                                 calcularDistancia(latitudUsuario!!, longitudUsuario!!, lugar.latitud, lugar.longitud) < 50.0
                             }
@@ -243,7 +232,7 @@ fun Ventana2(navController: NavHostController) {
                     onClick = {
                         if (provinciaSeleccionada.isNotEmpty() && municipioSeleccionado.isNotEmpty()) {
                             cargando = true
-                            obtenerLugaresPorMunicipio(baseDatos, provinciaSeleccionada, municipioSeleccionado) { resultado ->
+                            lugarRepository.obtenerLugaresPorMunicipio(provinciaSeleccionada, municipioSeleccionado) { resultado ->
                                 lugares = resultado
                                 cargando = false
                                 falloUbicacion = false
@@ -281,133 +270,4 @@ fun Ventana2(navController: NavHostController) {
             }
         }
     }
-}
-
-private fun solicitarUbicacion(
-    clienteUbicacionFusionada: FusedLocationProviderClient,
-    onSuccess: (Location) -> Unit,
-    onFailure: () -> Unit
-) {
-    try {
-        val solicitudUbicacion = LocationRequest.create().apply {
-            priority = LocationRequest.PRIORITY_HIGH_ACCURACY
-            interval = 10000
-            fastestInterval = 5000
-            numUpdates = 1
-        }
-
-        clienteUbicacionFusionada.lastLocation.addOnSuccessListener { ubicacion ->
-            if (ubicacion != null) {
-                onSuccess(ubicacion)
-            } else {
-                clienteUbicacionFusionada.requestLocationUpdates(
-                    solicitudUbicacion,
-                    object : LocationCallback() {
-                        override fun onLocationResult(resultadoUbicacion: LocationResult) {
-                            val nuevaUbicacion = resultadoUbicacion.lastLocation
-                            if (nuevaUbicacion != null) {
-                                onSuccess(nuevaUbicacion)
-                                clienteUbicacionFusionada.removeLocationUpdates(this)
-                            } else {
-                                onFailure()
-                            }
-                        }
-                    },
-                    Looper.getMainLooper()
-                )
-            }
-        }.addOnFailureListener {
-            onFailure()
-        }
-    } catch (e: SecurityException) {
-        onFailure()
-    }
-}
-
-fun obtenerMunicipios(provincia: String): List<String> {
-    return when (provincia) {
-        "Madrid" -> listOf("Madrid", "Alcalá de Henares", "Getafe")
-        "Barcelona" -> listOf("Barcelona", "Badalona", "Hospitalet")
-        "Valencia" -> listOf("Valencia", "Torrent", "Gandía")
-        "Sevilla" -> listOf("Sevilla", "Dos Hermanas", "Alcalá de Guadaíra")
-        "Cuenca" -> listOf("Iniesta", "Cuenca", "Tarancón")
-        else -> emptyList()
-    }
-}
-
-private fun calcularDistancia(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
-    val radioTierra = 6371.0 // Radio de la Tierra en km
-    val diferenciaLatitud = Math.toRadians(lat2 - lat1)
-    val diferenciaLongitud = Math.toRadians(lon2 - lon1)
-    val a = sin(diferenciaLatitud / 2).pow(2) +
-            cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) * sin(diferenciaLongitud / 2).pow(2)
-    val c = 2 * atan2(sqrt(a), sqrt(1 - a))
-    return radioTierra * c
-}
-
-fun obtenerTodosLugares(baseDatos: FirebaseFirestore, callback: (List<Lugar>) -> Unit) {
-    baseDatos.collection("12345")
-        .get()
-        .addOnSuccessListener { resultado ->
-            val lugares = resultado.documents.mapNotNull { documento ->
-                try {
-                    val latitudStr = documento.getString("lat") ?: "0.0"
-                    val longitudStr = documento.getString("lon") ?: "0.0"
-                    Lugar(
-                        id = documento.id,
-                        nombre = documento.getString("name") ?: "",
-                        direccion = documento.getString("address") ?: "",
-                        provincia = documento.getString("province") ?: "",
-                        municipio = documento.getString("municipality") ?: "",
-                        latitud = latitudStr.toDouble(),
-                        longitud = longitudStr.toDouble()
-                    )
-                } catch (e: Exception) {
-                    println("Error al parsear documento ${documento.id}: $e")
-                    null
-                }
-            }
-            callback(lugares)
-        }
-        .addOnFailureListener {
-            println("Error al obtener lugares: $it")
-            callback(emptyList())
-        }
-}
-
-fun obtenerLugaresPorMunicipio(
-    baseDatos: FirebaseFirestore,
-    provincia: String,
-    municipio: String,
-    callback: (List<Lugar>) -> Unit
-) {
-    baseDatos.collection("12345")
-        .whereEqualTo("province", provincia.trim())
-        .whereEqualTo("municipality", municipio.trim())
-        .get()
-        .addOnSuccessListener { resultado ->
-            val lugares = resultado.documents.mapNotNull { documento ->
-                try {
-                    val latitudStr = documento.getString("lat") ?: "0.0"
-                    val longitudStr = documento.getString("lon") ?: "0.0"
-                    Lugar(
-                        id = documento.id,
-                        nombre = documento.getString("name") ?: "",
-                        direccion = documento.getString("address") ?: "",
-                        provincia = documento.getString("province") ?: "",
-                        municipio = documento.getString("municipality") ?: "",
-                        latitud = latitudStr.toDouble(),
-                        longitud = longitudStr.toDouble()
-                    )
-                } catch (e: Exception) {
-                    println("Error al parsear documento ${documento.id}: $e")
-                    null
-                }
-            }
-            callback(lugares)
-        }
-        .addOnFailureListener {
-            println("Error al filtrar lugares: $it")
-            callback(emptyList())
-        }
 }
