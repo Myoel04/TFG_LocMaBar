@@ -16,15 +16,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import com.example.locmabar.modelo.ComunidadAutonoma
 import com.example.locmabar.modelo.Lugar
 import com.example.locmabar.modelo.LugarRepository
 import com.example.locmabar.modelo.UbicacionService
 import com.example.locmabar.utils.calcularDistancia
-import com.example.locmabar.utils.obtenerMunicipios
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.launch
+import java.io.InputStreamReader
 
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -40,18 +44,70 @@ fun Ventana2(navController: NavHostController) {
     var permisoDenegado by remember { mutableStateOf(false) }
     var cargando by remember { mutableStateOf(false) }
 
-    val provincias = listOf("Madrid", "Barcelona", "Valencia", "Sevilla", "Cuenca")
+    // Estado para comunidades, provincias y municipios
+    var comunidades by remember { mutableStateOf(listOf<ComunidadAutonoma>()) }
+    var comunidadesNombres by remember { mutableStateOf(listOf<String>()) }
+    var provincias by remember { mutableStateOf(listOf<String>()) }
+    var municipios by remember { mutableStateOf(listOf<String>()) }
+    var comunidadSeleccionada by remember { mutableStateOf("") }
+    var expandirComunidad by remember { mutableStateOf(false) }
     var provinciaSeleccionada by remember { mutableStateOf("") }
     var expandirProvincia by remember { mutableStateOf(false) }
     var municipioSeleccionado by remember { mutableStateOf("") }
     var expandirMunicipio by remember { mutableStateOf(false) }
-    val municipios = obtenerMunicipios(provinciaSeleccionada)
 
     // Lista de lugares
     var lugares by remember { mutableStateOf(listOf<Lugar>()) }
 
     // Permiso de ubicación
     val estadoPermisoUbicacion = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION)
+
+    // Coroutine scope para manejar la carga de datos
+    val coroutineScope = rememberCoroutineScope()
+
+    // Cargar las comunidades desde el archivo JSON en assets
+    LaunchedEffect(Unit) {
+        coroutineScope.launch {
+            try {
+                val inputStream = contexto.assets.open("spain.json")
+                val reader = InputStreamReader(inputStream)
+                val type = object : TypeToken<List<ComunidadAutonoma>>() {}.type
+                comunidades = Gson().fromJson(reader, type)
+                comunidadesNombres = comunidades.map { it.label }.sorted()
+                reader.close()
+            } catch (e: Exception) {
+                println("Error al cargar comunidades desde assets: ${e.message}")
+            }
+        }
+    }
+
+    // Cargar provincias cuando se selecciona una comunidad
+    LaunchedEffect(comunidadSeleccionada) {
+        if (comunidadSeleccionada.isNotEmpty()) {
+            val comunidadData = comunidades.find { it.label == comunidadSeleccionada }
+            provincias = comunidadData?.provinces?.map { it.label }?.sorted() ?: emptyList()
+            provinciaSeleccionada = "" // Reiniciar la provincia seleccionada
+            municipios = emptyList() // Reiniciar los municipios
+            municipioSeleccionado = "" // Reiniciar el municipio seleccionado
+        } else {
+            provincias = emptyList()
+            municipios = emptyList()
+            provinciaSeleccionada = ""
+            municipioSeleccionado = ""
+        }
+    }
+
+    // Cargar municipios cuando se selecciona una provincia
+    LaunchedEffect(provinciaSeleccionada) {
+        if (provinciaSeleccionada.isNotEmpty()) {
+            val provinciaData = comunidades.flatMap { it.provinces }.find { it.label == provinciaSeleccionada }
+            municipios = provinciaData?.towns?.map { it.label }?.sorted() ?: emptyList()
+            municipioSeleccionado = "" // Reiniciar el municipio seleccionado
+        } else {
+            municipios = emptyList()
+            municipioSeleccionado = ""
+        }
+    }
 
     // Verifico si los servicios de ubicación están habilitados
     val gestorUbicacion = contexto.getSystemService(Context.LOCATION_SERVICE) as LocationManager
@@ -130,7 +186,7 @@ fun Ventana2(navController: NavHostController) {
         } else {
             if (permisoDenegado) {
                 Text(
-                    text = "Permiso de ubicación denegado. Selecciona provincia y municipio manualmente o revisa los permisos en Configuración.",
+                    text = "Permiso de ubicación denegado. Selecciona comunidad, provincia y municipio manualmente o revisa los permisos en Configuración.",
                     fontSize = 14.sp,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
@@ -169,6 +225,35 @@ fun Ventana2(navController: NavHostController) {
             }
 
             if (latitudUsuario == null || longitudUsuario == null || falloUbicacion || lugares.isEmpty()) {
+                // Selector de comunidad autónoma
+                ExposedDropdownMenuBox(
+                    expanded = expandirComunidad,
+                    onExpandedChange = { expandirComunidad = !expandirComunidad }
+                ) {
+                    TextField(
+                        value = comunidadSeleccionada,
+                        onValueChange = {},
+                        label = { Text("Comunidad Autónoma") },
+                        readOnly = true,
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expandirComunidad,
+                        onDismissRequest = { expandirComunidad = false }
+                    ) {
+                        comunidadesNombres.forEach { comunidad ->
+                            DropdownMenuItem(
+                                text = { Text(comunidad) },
+                                onClick = {
+                                    comunidadSeleccionada = comunidad
+                                    expandirComunidad = false
+                                }
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+
                 // Selector de provincia
                 ExposedDropdownMenuBox(
                     expanded = expandirProvincia,
@@ -179,7 +264,8 @@ fun Ventana2(navController: NavHostController) {
                         onValueChange = {},
                         label = { Text("Provincia") },
                         readOnly = true,
-                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                        modifier = Modifier.menuAnchor().fillMaxWidth(),
+                        enabled = provincias.isNotEmpty()
                     )
                     ExposedDropdownMenu(
                         expanded = expandirProvincia,
@@ -190,7 +276,6 @@ fun Ventana2(navController: NavHostController) {
                                 text = { Text(provincia) },
                                 onClick = {
                                     provinciaSeleccionada = provincia
-                                    municipioSeleccionado = ""
                                     expandirProvincia = false
                                 }
                             )
@@ -209,7 +294,8 @@ fun Ventana2(navController: NavHostController) {
                         onValueChange = {},
                         label = { Text("Municipio") },
                         readOnly = true,
-                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                        modifier = Modifier.menuAnchor().fillMaxWidth(),
+                        enabled = municipios.isNotEmpty()
                     )
                     ExposedDropdownMenu(
                         expanded = expandirMunicipio,
@@ -230,7 +316,7 @@ fun Ventana2(navController: NavHostController) {
 
                 Button(
                     onClick = {
-                        if (provinciaSeleccionada.isNotEmpty() && municipioSeleccionado.isNotEmpty()) {
+                        if (comunidadSeleccionada.isNotEmpty() && provinciaSeleccionada.isNotEmpty() && municipioSeleccionado.isNotEmpty()) {
                             cargando = true
                             lugarRepository.obtenerLugaresPorMunicipio(provinciaSeleccionada, municipioSeleccionado) { resultado ->
                                 lugares = resultado
@@ -239,7 +325,7 @@ fun Ventana2(navController: NavHostController) {
                             }
                         }
                     },
-                    enabled = provinciaSeleccionada.isNotEmpty() && municipioSeleccionado.isNotEmpty()
+                    enabled = comunidadSeleccionada.isNotEmpty() && provinciaSeleccionada.isNotEmpty() && municipioSeleccionado.isNotEmpty()
                 ) {
                     Text("Buscar")
                 }
@@ -265,7 +351,7 @@ fun Ventana2(navController: NavHostController) {
                         }
                     }
                 }
-            } else if (!cargando && (latitudUsuario != null || (provinciaSeleccionada.isNotEmpty() && municipioSeleccionado.isNotEmpty()))) {
+            } else if (!cargando && (latitudUsuario != null || (comunidadSeleccionada.isNotEmpty() && provinciaSeleccionada.isNotEmpty() && municipioSeleccionado.isNotEmpty()))) {
                 Text("No se encontraron lugares.", fontSize = 14.sp)
             }
         }
