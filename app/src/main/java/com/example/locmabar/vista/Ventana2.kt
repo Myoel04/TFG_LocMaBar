@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.location.LocationManager
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -29,6 +30,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.launch
 import java.io.InputStreamReader
+import java.net.URLEncoder
 
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -177,6 +179,20 @@ fun Ventana2(navController: NavHostController) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text("Bares y Restaurantes Cercanos", fontSize = 20.sp)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Botón para solicitar agregar un restaurante
+        Button(
+            onClick = {
+                // Serializar las comunidades a JSON
+                val comunidadesJson = Gson().toJson(comunidades)
+                val encodedComunidadesJson = URLEncoder.encode(comunidadesJson, "UTF-8")
+                navController.navigate("solicitarRestaurante/$encodedComunidadesJson")
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Solicitar Agregar Restaurante")
+        }
         Spacer(modifier = Modifier.height(16.dp))
 
         if (cargando) {
@@ -340,6 +356,14 @@ fun Ventana2(navController: NavHostController) {
                             modifier = Modifier
                                 .padding(8.dp)
                                 .fillMaxWidth()
+                                .clickable {
+                                    // Serializar el objeto Lugar a JSON
+                                    val lugarJson = Gson().toJson(lugar)
+                                    // Codificar el JSON para pasarlo como argumento en la URL
+                                    val encodedLugarJson = URLEncoder.encode(lugarJson, "UTF-8")
+                                    // Navegar a la pantalla de detalles
+                                    navController.navigate("detallesBar/$encodedLugarJson/${latitudUsuario ?: 0.0}/${longitudUsuario ?: 0.0}")
+                                }
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(lugar.nombre, fontSize = 18.sp, fontWeight = FontWeight.Bold)
