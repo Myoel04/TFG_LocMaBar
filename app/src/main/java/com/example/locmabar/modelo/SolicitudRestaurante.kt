@@ -13,6 +13,5 @@ data class SolicitudRestaurante(
     val telefono: String? = null,
     val horario: String? = null,
     val valoracion: String? = null,
-    val estado: String = "PENDIENTE", // PENDIENTE, APROBADO, RECHAZADO
-    val imagenUrl: String? = null // URL de la imagen en Firebase Storage
+    val estado: String = "PENDIENTE" // PENDIENTE, APROBADO, RECHAZADO
 )

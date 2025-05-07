@@ -12,6 +12,7 @@ import com.example.locmabar.vista.Registro
 import com.example.locmabar.vista.Ventana2
 import com.example.locmabar.vista.VentanaDetalles
 import com.example.locmabar.vista.SolicitudNuevo
+import com.example.locmabar.vista.AdminSolicitudes
 import com.google.gson.Gson
 import java.net.URLDecoder
 
@@ -55,5 +56,6 @@ fun Navigation(navController: NavHostController, modifier: Modifier = Modifier) 
                 comunidadesJson = decodedComunidadesJson
             )
         }
+        composable("adminSolicitudes") { AdminSolicitudes(navController = navController) }
     }
 }

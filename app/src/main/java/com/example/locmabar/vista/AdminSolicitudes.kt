@@ -1,6 +1,5 @@
 package com.example.locmabar.vista
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -12,12 +11,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
-import coil.compose.rememberAsyncImagePainter
 import com.example.locmabar.modelo.Lugar
 import com.example.locmabar.modelo.LugarRepository
 import com.example.locmabar.modelo.SolicitudRestaurante
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.storage.FirebaseStorage
 
 @Composable
 fun AdminSolicitudes(navController: NavHostController) {
@@ -29,7 +26,7 @@ fun AdminSolicitudes(navController: NavHostController) {
     // Cargar solicitudes desde Firestore
     LaunchedEffect(Unit) {
         FirebaseFirestore.getInstance()
-            .collection("solicitudes")
+            .collection("Solicitudes")
             .whereEqualTo("estado", "PENDIENTE")
             .get()
             .addOnSuccessListener { result ->
@@ -111,26 +108,15 @@ fun AdminSolicitudes(navController: NavHostController) {
                                 solicitud.valoracion?.let { Text("Valoración: $it", fontSize = 12.sp) }
                                 Spacer(modifier = Modifier.height(8.dp))
 
-                                // Mostrar imagen si existe
-                                solicitud.imagenUrl?.let { url ->
-                                    Image(
-                                        painter = rememberAsyncImagePainter(url),
-                                        contentDescription = "Imagen del restaurante",
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(200.dp)
-                                            .padding(bottom = 8.dp)
-                                    )
-                                }
-
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceEvenly
                                 ) {
                                     Button(
                                         onClick = {
-                                            // Aprobar solicitud
+                                            // Aprobar solicitud: mover a la colección "12345" y eliminar de "Solicitudes"
                                             val lugar = Lugar(
+                                                id = solicitud.id,
                                                 nombre = solicitud.nombre,
                                                 direccion = solicitud.direccion,
                                                 provincia = solicitud.provincia,
@@ -141,14 +127,17 @@ fun AdminSolicitudes(navController: NavHostController) {
                                                 horario = solicitud.horario,
                                                 valoracion = solicitud.valoracion
                                             )
-                                            lugarRepository.agregarLugar(lugar)
-                                            FirebaseFirestore.getInstance()
-                                                .collection("solicitudes")
-                                                .document(solicitud.id)
-                                                .update("estado", "APROBADO")
-                                                .addOnSuccessListener {
-                                                    solicitudes = solicitudes.filter { it.id != solicitud.id }
+                                            lugarRepository.agregarLugar(lugar) { success ->
+                                                if (success) {
+                                                    FirebaseFirestore.getInstance()
+                                                        .collection("Solicitudes")
+                                                        .document(solicitud.id)
+                                                        .delete()
+                                                        .addOnSuccessListener {
+                                                            solicitudes = solicitudes.filter { it.id != solicitud.id }
+                                                        }
                                                 }
+                                            }
                                         },
                                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                                     ) {
@@ -156,32 +145,14 @@ fun AdminSolicitudes(navController: NavHostController) {
                                     }
                                     Button(
                                         onClick = {
-                                            // Rechazar solicitud
-                                            if (solicitud.imagenUrl != null) {
-                                                val storageRef = FirebaseStorage.getInstance().reference
-                                                val imagenRef = storageRef.child("solicitudes/${solicitud.id}/imagen.jpg")
-                                                imagenRef.delete()
-                                                    .addOnSuccessListener {
-                                                        FirebaseFirestore.getInstance()
-                                                            .collection("solicitudes")
-                                                            .document(solicitud.id)
-                                                            .update("estado", "RECHAZADO")
-                                                            .addOnSuccessListener {
-                                                                solicitudes = solicitudes.filter { it.id != solicitud.id }
-                                                            }
-                                                    }
-                                                    .addOnFailureListener {
-                                                        // Manejar error al eliminar imagen
-                                                    }
-                                            } else {
-                                                FirebaseFirestore.getInstance()
-                                                    .collection("solicitudes")
-                                                    .document(solicitud.id)
-                                                    .update("estado", "RECHAZADO")
-                                                    .addOnSuccessListener {
-                                                        solicitudes = solicitudes.filter { it.id != solicitud.id }
-                                                    }
-                                            }
+                                            // Rechazar solicitud: eliminar de "Solicitudes"
+                                            FirebaseFirestore.getInstance()
+                                                .collection("Solicitudes")
+                                                .document(solicitud.id)
+                                                .delete()
+                                                .addOnSuccessListener {
+                                                    solicitudes = solicitudes.filter { it.id != solicitud.id }
+                                                }
                                         },
                                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                                     ) {
