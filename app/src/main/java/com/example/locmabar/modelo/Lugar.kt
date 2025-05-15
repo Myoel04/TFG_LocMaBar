@@ -8,7 +8,7 @@ data class Lugar(
     val municipio: String,
     val latitud: Double,
     val longitud: Double,
-    val telefono: String? = null,  // Opcional, puedes llenarlo si tienes el dato
-    val horario: String? = null,   // Opcional, puedes llenarlo si tienes el dato
-    val valoracion: String? = null // Opcional, puedes llenarlo si tienes el dato
+    val telefono: String? = null,
+    val horario: String? = null,
+    val valoracion: String? = null
 )

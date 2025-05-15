@@ -6,18 +6,23 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import com.example.locmabar.R
 import com.example.locmabar.modelo.ComunidadAutonoma
+import com.example.locmabar.modelo.GeocodingResponse
+import com.example.locmabar.modelo.RetrofitClient
 import com.example.locmabar.modelo.SolicitudRestaurante
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.gson.Gson
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 import java.util.UUID
-import androidx.compose.ui.platform.LocalContext
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,14 +42,15 @@ fun SolicitudNuevo(
     var expandirProvincia by remember { mutableStateOf(false) }
     var municipioSeleccionado by remember { mutableStateOf("") }
     var expandirMunicipio by remember { mutableStateOf(false) }
-    var latitud by remember { mutableStateOf("") }
-    var longitud by remember { mutableStateOf("") }
+    var latitud by remember { mutableStateOf<Double?>(null) }
+    var longitud by remember { mutableStateOf<Double?>(null) }
     var telefono by remember { mutableStateOf("") }
     var horario by remember { mutableStateOf("") }
     var valoracion by remember { mutableStateOf("") }
     var mensajeExito by remember { mutableStateOf(false) }
     var errorMensaje by remember { mutableStateOf("") }
     var cargando by remember { mutableStateOf(false) }
+    var cargandoGeocodificacion by remember { mutableStateOf(false) }
 
     // Listas para los desplegables
     val provincias = comunidades.flatMap { it.provinces }.map { it.label }.distinct().sorted()
@@ -112,7 +118,6 @@ fun SolicitudNuevo(
                 )
             }
 
-            // Campo para el nombre
             OutlinedTextField(
                 value = nombre,
                 onValueChange = { nombre = it },
@@ -122,7 +127,6 @@ fun SolicitudNuevo(
             )
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Campo para la dirección
             OutlinedTextField(
                 value = direccion,
                 onValueChange = { direccion = it },
@@ -132,7 +136,6 @@ fun SolicitudNuevo(
             )
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Selector de provincia
             ExposedDropdownMenuBox(
                 expanded = expandirProvincia,
                 onExpandedChange = { expandirProvincia = !expandirProvincia }
@@ -161,7 +164,6 @@ fun SolicitudNuevo(
             }
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Selector de municipio
             ExposedDropdownMenuBox(
                 expanded = expandirMunicipio,
                 onExpandedChange = { expandirMunicipio = !expandirMunicipio }
@@ -191,29 +193,64 @@ fun SolicitudNuevo(
             }
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Campo para la latitud
-            OutlinedTextField(
-                value = latitud,
-                onValueChange = { latitud = it },
-                label = { Text("Latitud") },
+            Button(
+                onClick = {
+                    if (direccion.isBlank() || provinciaSeleccionada.isBlank() || municipioSeleccionado.isBlank()) {
+                        errorMensaje = "Por favor, completa la dirección, provincia y municipio."
+                        return@Button
+                    }
+
+                    cargandoGeocodificacion = true
+                    errorMensaje = ""
+
+                    val direccionCompleta = "$direccion, $municipioSeleccionado, $provinciaSeleccionada, Spain"
+                    RetrofitClient.geocodingService.getLatLngFromAddress(
+                        direccionCompleta,
+                        contexto.getString(R.string.google_maps_key)
+                    ).enqueue(object : Callback<GeocodingResponse> {
+                        override fun onResponse(call: Call<GeocodingResponse>, response: Response<GeocodingResponse>) {
+                            cargandoGeocodificacion = false
+                            if (response.isSuccessful) {
+                                val geocodingResponse = response.body()
+                                if (geocodingResponse?.status == "OK" && geocodingResponse.results.isNotEmpty()) {
+                                    val location = geocodingResponse.results[0].geometry.location
+                                    latitud = location.lat
+                                    longitud = location.lng
+                                } else {
+                                    errorMensaje = "No se encontraron coordenadas para la dirección: $direccionCompleta. Intenta con una dirección más específica."
+                                }
+                            } else {
+                                errorMensaje = "Error al conectar con la API de Geocodificación: ${response.message()}"
+                            }
+                        }
+
+                        override fun onFailure(call: Call<GeocodingResponse>, t: Throwable) {
+                            cargandoGeocodificacion = false
+                            errorMensaje = "Error al obtener coordenadas: ${t.message}"
+                        }
+                    })
+                },
                 modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true
-            )
+                enabled = direccion.isNotBlank() && provinciaSeleccionada.isNotBlank() && municipioSeleccionado.isNotBlank()
+            ) {
+                if (cargandoGeocodificacion) {
+                    Text("Obteniendo coordenadas...")
+                } else {
+                    Text("Obtener Coordenadas")
+                }
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Campo para la longitud
-            OutlinedTextField(
-                value = longitud,
-                onValueChange = { longitud = it },
-                label = { Text("Longitud") },
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+            if (latitud != null && longitud != null) {
+                Text(
+                    text = "Coordenadas obtenidas: Latitud: $latitud, Longitud: $longitud",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
 
-            // Campo para el teléfono (opcional)
             OutlinedTextField(
                 value = telefono,
                 onValueChange = { telefono = it },
@@ -224,7 +261,6 @@ fun SolicitudNuevo(
             )
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Campo para el horario (opcional)
             OutlinedTextField(
                 value = horario,
                 onValueChange = { horario = it },
@@ -234,7 +270,6 @@ fun SolicitudNuevo(
             )
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Campo para la valoración (opcional)
             OutlinedTextField(
                 value = valoracion,
                 onValueChange = { valoracion = it },
@@ -244,7 +279,6 @@ fun SolicitudNuevo(
             )
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Botón para enviar la solicitud
             Button(
                 onClick = {
                     if (user == null) {
@@ -252,70 +286,54 @@ fun SolicitudNuevo(
                         return@Button
                     }
 
-                    // Validar campos obligatorios
                     if (nombre.isNotBlank() && direccion.isNotBlank() && provinciaSeleccionada.isNotBlank() &&
-                        municipioSeleccionado.isNotBlank() && latitud.isNotBlank() && longitud.isNotBlank()
+                        municipioSeleccionado.isNotBlank() && latitud != null && longitud != null
                     ) {
-                        try {
-                            val latitudDouble = latitud.toDouble()
-                            val longitudDouble = longitud.toDouble()
+                        cargando = true
+                        errorMensaje = ""
 
-                            // Validar rangos de latitud y longitud
-                            if (latitudDouble !in -90.0..90.0 || longitudDouble !in -180.0..180.0) {
-                                errorMensaje = "Latitud debe estar entre -90 y 90, y longitud entre -180 y 180."
-                                return@Button
+                        val solicitudId = UUID.randomUUID().toString()
+                        val solicitud = SolicitudRestaurante(
+                            id = solicitudId,
+                            nombre = nombre,
+                            direccion = direccion,
+                            provincia = provinciaSeleccionada,
+                            municipio = municipioSeleccionado,
+                            latitud = latitud!!,
+                            longitud = longitud!!,
+                            telefono = telefono.ifBlank { null },
+                            horario = horario.ifBlank { null },
+                            valoracion = valoracion.ifBlank { null },
+                            estado = "PENDIENTE"
+                        )
+
+                        FirebaseFirestore.getInstance()
+                            .collection("Solicitudes")
+                            .document(solicitudId)
+                            .set(solicitud)
+                            .addOnSuccessListener {
+                                mensajeExito = true
+                                cargando = false
+                                nombre = ""
+                                direccion = ""
+                                provinciaSeleccionada = ""
+                                municipioSeleccionado = ""
+                                latitud = null
+                                longitud = null
+                                telefono = ""
+                                horario = ""
+                                valoracion = ""
                             }
-
-                            cargando = true
-                            errorMensaje = ""
-
-                            // Crear la solicitud
-                            val solicitudId = UUID.randomUUID().toString()
-                            val solicitud = SolicitudRestaurante(
-                                id = solicitudId,
-                                nombre = nombre,
-                                direccion = direccion,
-                                provincia = provinciaSeleccionada,
-                                municipio = municipioSeleccionado,
-                                latitud = latitudDouble,
-                                longitud = longitudDouble,
-                                telefono = telefono.ifBlank { null },
-                                horario = horario.ifBlank { null },
-                                valoracion = valoracion.ifBlank { null },
-                                estado = "PENDIENTE"
-                            )
-
-                            // Guardar solicitud en Firestore en la colección "Solicitudes"
-                            FirebaseFirestore.getInstance()
-                                .collection("Solicitudes")
-                                .document(solicitudId)
-                                .set(solicitud)
-                                .addOnSuccessListener {
-                                    mensajeExito = true
-                                    cargando = false
-                                    // Limpiar el formulario
-                                    nombre = ""
-                                    direccion = ""
-                                    provinciaSeleccionada = ""
-                                    municipioSeleccionado = ""
-                                    latitud = ""
-                                    longitud = ""
-                                    telefono = ""
-                                    horario = ""
-                                    valoracion = ""
-                                }
-                                .addOnFailureListener { e ->
-                                    errorMensaje = "Error al guardar solicitud: ${e.message}"
-                                    cargando = false
-                                }
-                        } catch (e: NumberFormatException) {
-                            errorMensaje = "Latitud y longitud deben ser números válidos."
-                            cargando = false
-                        }
+                            .addOnFailureListener { e ->
+                                errorMensaje = "Error al guardar solicitud: ${e.message}"
+                                cargando = false
+                            }
+                    } else {
+                        errorMensaje = "Por favor, completa todos los campos obligatorios y obtén las coordenadas."
                     }
                 },
                 enabled = nombre.isNotBlank() && direccion.isNotBlank() && provinciaSeleccionada.isNotBlank() &&
-                        municipioSeleccionado.isNotBlank() && latitud.isNotBlank() && longitud.isNotBlank(),
+                        municipioSeleccionado.isNotBlank() && latitud != null && longitud != null,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Enviar Solicitud")
@@ -323,7 +341,6 @@ fun SolicitudNuevo(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Botón para volver atrás
             Button(
                 onClick = { navController.popBackStack() },
                 modifier = Modifier.fillMaxWidth()

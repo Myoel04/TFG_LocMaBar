@@ -48,6 +48,7 @@ fun Ventana2(navController: NavHostController) {
     var falloUbicacion by remember { mutableStateOf(false) }
     var permisoDenegado by remember { mutableStateOf(false) }
     var cargando by remember { mutableStateOf(false) }
+    var errorMensaje by remember { mutableStateOf("") }
 
     // Estado para comunidades, provincias y municipios
     var comunidades by remember { mutableStateOf(listOf<ComunidadAutonoma>()) }
@@ -66,7 +67,7 @@ fun Ventana2(navController: NavHostController) {
 
     // Configuración del mapa
     val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(LatLng(40.4168, -3.7038), 10f) // Centro en Madrid por defecto
+        position = CameraPosition.fromLatLngZoom(LatLng(40.4168, -3.7038), 10f)
     }
 
     // Permiso de ubicación
@@ -86,7 +87,7 @@ fun Ventana2(navController: NavHostController) {
                 comunidadesNombres = comunidades.map { it.label }.sorted()
                 reader.close()
             } catch (e: Exception) {
-                println("Error al cargar comunidades desde assets: ${e.message}")
+                errorMensaje = "Error al cargar comunidades: ${e.message}"
             }
         }
     }
@@ -127,14 +128,13 @@ fun Ventana2(navController: NavHostController) {
     // Solicitar permiso y ubicación
     LaunchedEffect(estadoPermisoUbicacion) {
         if (!estadoPermisoUbicacion.status.isGranted) {
-            println("Solicitando permiso de ubicación...")
             estadoPermisoUbicacion.launchPermissionRequest()
         } else {
-            println("Permiso ya concedido, verificando ubicación")
             if (gpsHabilitado || redHabilitada) {
                 cargando = true
                 permisoDenegado = false
                 falloUbicacion = false
+                errorMensaje = ""
 
                 ubicacionService.solicitarUbicacion(
                     onSuccess = { ubicacion ->
@@ -142,37 +142,50 @@ fun Ventana2(navController: NavHostController) {
                         longitudUsuario = ubicacion.longitude
                         println("Ubicación obtenida: lat=$latitudUsuario, lon=$longitudUsuario")
 
-                        lugarRepository.obtenerTodosLugares { todosLugares ->
+                        lugarRepository.obtenerTodosLugares { todosLugares, error ->
+                            if (error != null) {
+                                errorMensaje = error
+                                cargando = false
+                                falloUbicacion = true
+                                return@obtenerTodosLugares
+                            }
+
                             val lugaresFiltrados = todosLugares.filter { lugar ->
-                                calcularDistancia(latitudUsuario!!, longitudUsuario!!, lugar.latitud, lugar.longitud) < 50.0
+                                val distancia = calcularDistancia(
+                                    latitudUsuario!!,
+                                    longitudUsuario!!,
+                                    lugar.latitud,
+                                    lugar.longitud
+                                )
+                                println("Distancia a ${lugar.nombre}: $distancia km")
+                                distancia < 50.0
                             }
                             lugares = lugaresFiltrados
                             cargando = false
                             if (lugaresFiltrados.isEmpty()) {
+                                errorMensaje = "No se encontraron lugares cercanos (menos de 50 km)."
                                 falloUbicacion = true
-                                println("No se encontraron lugares cercanos")
+                            } else {
+                                cameraPositionState.position = CameraPosition.fromLatLngZoom(
+                                    LatLng(latitudUsuario!!, longitudUsuario!!), 12f
+                                )
                             }
-                            // Actualizar la posición del mapa
-                            cameraPositionState.position = CameraPosition.fromLatLngZoom(
-                                LatLng(latitudUsuario!!, longitudUsuario!!), 12f
-                            )
                         }
                     },
                     onFailure = {
-                        println("Error al obtener ubicación")
+                        errorMensaje = "Error al obtener ubicación."
                         cargando = false
                         falloUbicacion = true
                     }
                 )
             } else {
-                println("Servicios de ubicación deshabilitados")
+                errorMensaje = "Servicios de ubicación deshabilitados."
                 cargando = false
                 falloUbicacion = true
             }
         }
         if (!estadoPermisoUbicacion.status.isGranted && !estadoPermisoUbicacion.status.shouldShowRationale) {
             permisoDenegado = true
-            println("Permiso denegado permanentemente")
         }
     }
 
@@ -223,7 +236,7 @@ fun Ventana2(navController: NavHostController) {
 
             if (falloUbicacion) {
                 Text(
-                    text = "No se pudo obtener la ubicación. Asegúrate de que los servicios de ubicación estén habilitados.",
+                    text = errorMensaje.ifEmpty { "No se pudo obtener la ubicación. Asegúrate de que los servicios de ubicación estén habilitados." },
                     fontSize = 14.sp,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
@@ -337,12 +350,18 @@ fun Ventana2(navController: NavHostController) {
                     onClick = {
                         if (comunidadSeleccionada.isNotEmpty() && provinciaSeleccionada.isNotEmpty() && municipioSeleccionado.isNotEmpty()) {
                             cargando = true
-                            lugarRepository.obtenerLugaresPorMunicipio(provinciaSeleccionada, municipioSeleccionado) { resultado ->
+                            errorMensaje = ""
+                            lugarRepository.obtenerLugaresPorMunicipio(provinciaSeleccionada, municipioSeleccionado) { resultado, error ->
                                 lugares = resultado
                                 cargando = false
                                 falloUbicacion = false
-                                // Actualizar la posición del mapa si hay lugares
-                                if (resultado.isNotEmpty()) {
+                                if (error != null) {
+                                    errorMensaje = error
+                                    return@obtenerLugaresPorMunicipio
+                                }
+                                if (resultado.isEmpty()) {
+                                    errorMensaje = "No se encontraron lugares en $municipioSeleccionado, $provinciaSeleccionada."
+                                } else {
                                     val primerLugar = resultado.first()
                                     cameraPositionState.position = CameraPosition.fromLatLngZoom(
                                         LatLng(primerLugar.latitud, primerLugar.longitud), 12f
@@ -360,7 +379,6 @@ fun Ventana2(navController: NavHostController) {
             Spacer(modifier = Modifier.height(16.dp))
 
             if (lugares.isNotEmpty()) {
-                // Mapa de Google
                 GoogleMap(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -401,7 +419,7 @@ fun Ventana2(navController: NavHostController) {
                     }
                 }
             } else if (!cargando && (latitudUsuario != null || (comunidadSeleccionada.isNotEmpty() && provinciaSeleccionada.isNotEmpty() && municipioSeleccionado.isNotEmpty()))) {
-                Text("No se encontraron lugares.", fontSize = 14.sp)
+                Text(errorMensaje.ifEmpty { "No se encontraron lugares." }, fontSize = 14.sp)
             }
         }
     }

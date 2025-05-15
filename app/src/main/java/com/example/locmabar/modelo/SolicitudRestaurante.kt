@@ -13,5 +13,5 @@ data class SolicitudRestaurante(
     val telefono: String? = null,
     val horario: String? = null,
     val valoracion: String? = null,
-    val estado: String = "PENDIENTE" // PENDIENTE, APROBADO, RECHAZADO
+    val estado: String = "PENDIENTE"
 )

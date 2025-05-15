@@ -86,7 +86,7 @@ fun AdminSolicitudes(navController: NavHostController) {
 
             // Locales
             val lugarRepository = LugarRepository()
-            lugarRepository.obtenerTodosLugares { lugares ->
+            lugarRepository.obtenerTodosLugares { lugares, error ->
                 locales = lugares
                 cargando = false
                 // Actualizar la posición del mapa si hay lugares
