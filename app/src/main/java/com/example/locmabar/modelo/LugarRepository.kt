@@ -66,4 +66,26 @@ class LugarRepository {
                 callback(emptyList())
             }
     }
+
+    fun agregarLugar(lugar: Lugar, callback: (Boolean) -> Unit) {
+        baseDatos.collection("12345")
+            .document(lugar.id)
+            .set(
+                mapOf(
+                    "name" to lugar.nombre,
+                    "address" to lugar.direccion,
+                    "province" to lugar.provincia,
+                    "municipality" to lugar.municipio,
+                    "lat" to lugar.latitud.toString(),
+                    "lon" to lugar.longitud.toString()
+                )
+            )
+            .addOnSuccessListener {
+                callback(true)
+            }
+            .addOnFailureListener {
+                println("Error al agregar lugar: $it")
+                callback(false)
+            }
+    }
 }

@@ -59,26 +59,27 @@ dependencies {
 
     // Firebase dependencies
     implementation(platform("com.google.firebase:firebase-bom:33.12.0"))
-    implementation("com.google.firebase:firebase-auth")
-    implementation("com.google.firebase:firebase-analytics")
-    implementation("com.google.firebase:firebase-firestore") // Añadido para Firestore
+    implementation("com.google.firebase:firebase-auth-ktx")
+    implementation("com.google.firebase:firebase-analytics-ktx")
+    implementation("com.google.firebase:firebase-firestore-ktx")
 
     // Google Play Services
     implementation("com.google.android.gms:play-services-auth:21.3.0")
-    implementation("com.google.android.gms:play-services-location:21.0.1") // Añadido para ubicación
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+
+    // Google Maps Compose
+    implementation("com.google.maps.android:maps-compose:4.3.3")
 
     // Navigation Component
     implementation("androidx.navigation:navigation-compose:2.7.3")
 
     // Accompanist Permissions
-    implementation("com.google.accompanist:accompanist-permissions:0.34.0") // Añadido para permisos
+    implementation("com.google.accompanist:accompanist-permissions:0.34.0")
 
-    //implementacion para la api de municipios y provincia
-    implementation ("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation ("com.squareup.retrofit2:converter-gson:2.9.0")
-    implementation ("com.squareup.okhttp3:okhttp:4.9.3")
-    implementation ("com.google.code.gson:gson:2.9.0")
-    implementation ("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.5.2")
-
-
+    // Implementaciones para la API de municipios y provincia
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("com.squareup.okhttp3:okhttp:4.9.3")
+    implementation("com.google.code.gson:gson:2.10.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4")
 }

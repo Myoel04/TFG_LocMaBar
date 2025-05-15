@@ -26,8 +26,11 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.google.maps.android.compose.*
 import kotlinx.coroutines.launch
 import java.io.InputStreamReader
 import java.net.URLEncoder
@@ -61,6 +64,11 @@ fun Ventana2(navController: NavHostController) {
     // Lista de lugares
     var lugares by remember { mutableStateOf(listOf<Lugar>()) }
 
+    // Configuración del mapa
+    val cameraPositionState = rememberCameraPositionState {
+        position = CameraPosition.fromLatLngZoom(LatLng(40.4168, -3.7038), 10f) // Centro en Madrid por defecto
+    }
+
     // Permiso de ubicación
     val estadoPermisoUbicacion = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION)
 
@@ -88,9 +96,9 @@ fun Ventana2(navController: NavHostController) {
         if (comunidadSeleccionada.isNotEmpty()) {
             val comunidadData = comunidades.find { it.label == comunidadSeleccionada }
             provincias = comunidadData?.provinces?.map { it.label }?.sorted() ?: emptyList()
-            provinciaSeleccionada = "" // Reiniciar la provincia seleccionada
-            municipios = emptyList() // Reiniciar los municipios
-            municipioSeleccionado = "" // Reiniciar el municipio seleccionado
+            provinciaSeleccionada = ""
+            municipios = emptyList()
+            municipioSeleccionado = ""
         } else {
             provincias = emptyList()
             municipios = emptyList()
@@ -104,7 +112,7 @@ fun Ventana2(navController: NavHostController) {
         if (provinciaSeleccionada.isNotEmpty()) {
             val provinciaData = comunidades.flatMap { it.provinces }.find { it.label == provinciaSeleccionada }
             municipios = provinciaData?.towns?.map { it.label }?.sorted() ?: emptyList()
-            municipioSeleccionado = "" // Reiniciar el municipio seleccionado
+            municipioSeleccionado = ""
         } else {
             municipios = emptyList()
             municipioSeleccionado = ""
@@ -115,13 +123,6 @@ fun Ventana2(navController: NavHostController) {
     val gestorUbicacion = contexto.getSystemService(Context.LOCATION_SERVICE) as LocationManager
     val gpsHabilitado = gestorUbicacion.isProviderEnabled(LocationManager.GPS_PROVIDER)
     val redHabilitada = gestorUbicacion.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
-
-    // Depuración para entender el estado
-    LaunchedEffect(Unit) {
-        println("Ventana2 iniciada")
-        println("Permiso: isGranted=${estadoPermisoUbicacion.status.isGranted}, shouldShowRationale=${estadoPermisoUbicacion.status.shouldShowRationale}")
-        println("GPS habilitado: $gpsHabilitado, Red habilitada: $redHabilitada")
-    }
 
     // Solicitar permiso y ubicación
     LaunchedEffect(estadoPermisoUbicacion) {
@@ -151,6 +152,10 @@ fun Ventana2(navController: NavHostController) {
                                 falloUbicacion = true
                                 println("No se encontraron lugares cercanos")
                             }
+                            // Actualizar la posición del mapa
+                            cameraPositionState.position = CameraPosition.fromLatLngZoom(
+                                LatLng(latitudUsuario!!, longitudUsuario!!), 12f
+                            )
                         }
                     },
                     onFailure = {
@@ -165,7 +170,6 @@ fun Ventana2(navController: NavHostController) {
                 falloUbicacion = true
             }
         }
-        // Verificar estado después de la solicitud
         if (!estadoPermisoUbicacion.status.isGranted && !estadoPermisoUbicacion.status.shouldShowRationale) {
             permisoDenegado = true
             println("Permiso denegado permanentemente")
@@ -184,7 +188,6 @@ fun Ventana2(navController: NavHostController) {
         // Botón para solicitar agregar un restaurante
         Button(
             onClick = {
-                // Serializar las comunidades a JSON
                 val comunidadesJson = Gson().toJson(comunidades)
                 val encodedComunidadesJson = URLEncoder.encode(comunidadesJson, "UTF-8")
                 navController.navigate("solicitarRestaurante/$encodedComunidadesJson")
@@ -338,6 +341,13 @@ fun Ventana2(navController: NavHostController) {
                                 lugares = resultado
                                 cargando = false
                                 falloUbicacion = false
+                                // Actualizar la posición del mapa si hay lugares
+                                if (resultado.isNotEmpty()) {
+                                    val primerLugar = resultado.first()
+                                    cameraPositionState.position = CameraPosition.fromLatLngZoom(
+                                        LatLng(primerLugar.latitud, primerLugar.longitud), 12f
+                                    )
+                                }
                             }
                         }
                     },
@@ -350,6 +360,24 @@ fun Ventana2(navController: NavHostController) {
             Spacer(modifier = Modifier.height(16.dp))
 
             if (lugares.isNotEmpty()) {
+                // Mapa de Google
+                GoogleMap(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(300.dp),
+                    cameraPositionState = cameraPositionState
+                ) {
+                    lugares.forEach { lugar ->
+                        Marker(
+                            state = MarkerState(position = LatLng(lugar.latitud, lugar.longitud)),
+                            title = lugar.nombre,
+                            snippet = lugar.direccion
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
                 LazyColumn(modifier = Modifier.fillMaxWidth()) {
                     items(lugares) { lugar ->
                         Card(
@@ -357,11 +385,8 @@ fun Ventana2(navController: NavHostController) {
                                 .padding(8.dp)
                                 .fillMaxWidth()
                                 .clickable {
-                                    // Serializar el objeto Lugar a JSON
                                     val lugarJson = Gson().toJson(lugar)
-                                    // Codificar el JSON para pasarlo como argumento en la URL
                                     val encodedLugarJson = URLEncoder.encode(lugarJson, "UTF-8")
-                                    // Navegar a la pantalla de detalles
                                     navController.navigate("detallesBar/$encodedLugarJson/${latitudUsuario ?: 0.0}/${longitudUsuario ?: 0.0}")
                                 }
                         ) {
