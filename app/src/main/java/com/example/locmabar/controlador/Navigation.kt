@@ -7,12 +7,17 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import androidx.navigation.NavType
+import com.example.locmabar.vista.AdminComentarios
+import com.example.locmabar.vista.AdminDatosComentarios
+import com.example.locmabar.vista.AdminDatosSolicitudes
+import com.example.locmabar.vista.AdminDatosUsuarios
+import com.example.locmabar.vista.AdminSolicitudes
+import com.example.locmabar.vista.AdminUsuarios
 import com.example.locmabar.vista.Login
 import com.example.locmabar.vista.Registro
+import com.example.locmabar.vista.SolicitudNuevo
 import com.example.locmabar.vista.Ventana2
 import com.example.locmabar.vista.VentanaDetalles
-import com.example.locmabar.vista.SolicitudNuevo
-import com.example.locmabar.vista.AdminSolicitudes
 import com.google.gson.Gson
 import java.net.URLDecoder
 
@@ -23,24 +28,38 @@ fun Navigation(navController: NavHostController, modifier: Modifier = Modifier) 
         composable("ventana2") { Ventana2(navController = navController) }
         composable("registro") { Registro(navController = navController) }
         composable(
-            route = "detallesBar/{lugarJson}/{latitudUsuario}/{longitudUsuario}",
+            route = "detallesBar/{lugarJson}?latitudUsuario={latitudUsuario}&longitudUsuario={longitudUsuario}",
             arguments = listOf(
                 navArgument("lugarJson") { type = NavType.StringType },
-                navArgument("latitudUsuario") { type = NavType.FloatType },
-                navArgument("longitudUsuario") { type = NavType.FloatType }
+                navArgument("latitudUsuario") { type = NavType.StringType; nullable = true },
+                navArgument("longitudUsuario") { type = NavType.StringType; nullable = true }
             )
         ) { backStackEntry ->
             val lugarJson = backStackEntry.arguments?.getString("lugarJson") ?: ""
             val decodedLugarJson = URLDecoder.decode(lugarJson, "UTF-8")
-            val lugar = Gson().fromJson(decodedLugarJson, com.example.locmabar.modelo.Lugar::class.java)
-            val latitudUsuario = backStackEntry.arguments?.getFloat("latitudUsuario")?.toDouble()
-            val longitudUsuario = backStackEntry.arguments?.getFloat("longitudUsuario")?.toDouble()
+            val lugar = try {
+                Gson().fromJson(decodedLugarJson, com.example.locmabar.modelo.Lugar::class.java)
+            } catch (e: Exception) {
+                null // Manejar error si el JSON es inválido
+            }
+            val latitudUsuarioStr = backStackEntry.arguments?.getString("latitudUsuario")
+            val longitudUsuarioStr = backStackEntry.arguments?.getString("longitudUsuario")
+            val latitudUsuario = latitudUsuarioStr?.toDoubleOrNull()
+            val longitudUsuario = longitudUsuarioStr?.toDoubleOrNull()
 
             VentanaDetalles(
                 navController = navController,
-                lugar = lugar,
-                latitudUsuario = if (latitudUsuario != 0.0) latitudUsuario else null,
-                longitudUsuario = if (longitudUsuario != 0.0) longitudUsuario else null
+                lugar = lugar ?: com.example.locmabar.modelo.Lugar(
+                    id = "",
+                    nombre = "",
+                    direccion = "",
+                    provincia = "",
+                    municipio = "",
+                    latitud = 0.0,
+                    longitud = 0.0
+                ), // Valor por defecto si falla el parsing
+                latitudUsuario = latitudUsuario,
+                longitudUsuario = longitudUsuario
             )
         }
         composable(
@@ -57,5 +76,34 @@ fun Navigation(navController: NavHostController, modifier: Modifier = Modifier) 
             )
         }
         composable("adminSolicitudes") { AdminSolicitudes(navController = navController) }
+        composable("adminComentarios") { AdminComentarios(navController = navController) }
+        composable(
+            route = "adminDatosComentarios/{comentarioId}",
+            arguments = listOf(
+                navArgument("comentarioId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val comentarioId = backStackEntry.arguments?.getString("comentarioId") ?: ""
+            AdminDatosComentarios(navController = navController, comentarioId = comentarioId)
+        }
+        composable(
+            route = "adminDatosSolicitudes/{solicitudId}",
+            arguments = listOf(
+                navArgument("solicitudId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val solicitudId = backStackEntry.arguments?.getString("solicitudId") ?: ""
+            AdminDatosSolicitudes(navController = navController, solicitudId = solicitudId)
+        }
+        composable("adminUsuarios") { AdminUsuarios(navController = navController) }
+        composable(
+            route = "adminDatosUsuarios/{usuarioId}",
+            arguments = listOf(
+                navArgument("usuarioId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val usuarioId = backStackEntry.arguments?.getString("usuarioId") ?: ""
+            AdminDatosUsuarios(navController = navController, usuarioId = usuarioId)
+        }
     }
 }

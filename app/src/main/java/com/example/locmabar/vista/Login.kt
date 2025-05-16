@@ -9,9 +9,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
@@ -21,95 +21,146 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun Login(navController: NavController) {
     val auth = FirebaseAuth.getInstance()
+    val scope = rememberCoroutineScope()
+
+    // Estados para los campos de entrada
     val email = remember { mutableStateOf("") }
     val contrasena = remember { mutableStateOf("") }
     val errorMessage = remember { mutableStateOf<String?>(null) }
+    var cargando by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(color = MaterialTheme.colorScheme.background)
             .padding(16.dp)
     ) {
         Column(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceEvenly // Cambiado a SpaceEvenly para mejor distribución
+            verticalArrangement = Arrangement.SpaceEvenly
         ) {
             Text(
                 text = "¡Bienvenido!",
-                color = Color.Black,
-                style = TextStyle(fontSize = 25.sp),
-                modifier = Modifier.padding(vertical = 9.dp)
+                color = MaterialTheme.colorScheme.onBackground,
+                style = TextStyle(fontSize = 25.sp, fontWeight = FontWeight.Bold),
+                modifier = Modifier.padding(top = 24.dp, bottom = 8.dp)
             )
 
             Column(
-                modifier = Modifier.fillMaxWidth(0.8f),
+                modifier = Modifier
+                    .fillMaxWidth(0.85f),
                 horizontalAlignment = Alignment.Start
             ) {
-                Text("USUARIO", color = Color.Black, style = TextStyle(fontSize = 12.sp))
+                Text(
+                    text = "CORREO ELECTRÓNICO",
+                    color = MaterialTheme.colorScheme.onBackground,
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
                 TextField(
                     value = email.value,
                     onValueChange = { email.value = it },
                     colors = TextFieldDefaults.colors(
-                        unfocusedContainerColor = Color(0xFFF5F5F5),
-                        focusedContainerColor = Color(0xFFF5F5F5)
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                        unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     ),
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp)
                 )
 
-                Text("CONTRASEÑA", color = Color.Black, style = TextStyle(fontSize = 12.sp))
+                Text(
+                    text = "CONTRASEÑA",
+                    color = MaterialTheme.colorScheme.onBackground,
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
                 TextField(
                     value = contrasena.value,
                     onValueChange = { contrasena.value = it },
                     colors = TextFieldDefaults.colors(
-                        unfocusedContainerColor = Color(0xFFF5F5F5),
-                        focusedContainerColor = Color(0xFFF5F5F5)
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                        unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     ),
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
                 )
             }
 
-            Column(
-                modifier = Modifier.fillMaxWidth(0.8f),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Button(
-                    onClick = {
-                        if (email.value.isEmpty() || contrasena.value.isEmpty()) {
-                            errorMessage.value = "Por favor ingrese usuario y contraseña"
-                            return@Button
-                        }
-                        auth.signInWithEmailAndPassword(email.value, contrasena.value)
-                            .addOnCompleteListener { task ->
-                                if (task.isSuccessful) {
+            if (cargando) {
+                CircularProgressIndicator()
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth(0.85f),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Button(
+                        onClick = {
+                            if (email.value.isEmpty() || contrasena.value.isEmpty()) {
+                                errorMessage.value = "Por favor ingrese correo y contraseña"
+                                return@Button
+                            }
+                            cargando = true
+                            scope.launch {
+                                try {
+                                    auth.signInWithEmailAndPassword(email.value, contrasena.value)
+                                        .await()
                                     navController.navigate("ventana2")
-                                } else {
-                                    errorMessage.value = "Error: ${task.exception?.message}"
+                                } catch (e: Exception) {
+                                    errorMessage.value = "Error: ${e.localizedMessage ?: "Desconocido"}"
+                                } finally {
+                                    cargando = false
                                 }
                             }
-                    },
-                    shape = RoundedCornerShape(100.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFDAB9)),
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
-                ) {
-                    Text("Entrar", color = Color.Black, textAlign = TextAlign.Center, style = MaterialTheme.typography.labelLarge)
-                }
+                        },
+                        shape = RoundedCornerShape(100.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                            .padding(vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = "Entrar",
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
 
-                Button(
-                    onClick = { navController.navigate("registro") },
-                    shape = RoundedCornerShape(100.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFDAB9)),
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
-                ) {
-                    Text("Registrarse", color = Color.Black, textAlign = TextAlign.Center, style = MaterialTheme.typography.labelLarge)
+                    Button(
+                        onClick = { navController.navigate("registro") },
+                        shape = RoundedCornerShape(100.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                            .padding(vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = "Registrarse",
+                            color = MaterialTheme.colorScheme.onSecondary,
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
                 }
             }
         }

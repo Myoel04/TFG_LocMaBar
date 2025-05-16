@@ -3,6 +3,7 @@ package com.example.locmabar.vista
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -46,7 +47,6 @@ fun AdminSolicitudes(navController: NavHostController) {
     // Estados para datos
     var usuarios by remember { mutableStateOf(listOf<Map<String, Any>>()) }
     var locales by remember { mutableStateOf(listOf<Lugar>()) }
-    var comentariosPendientes by remember { mutableStateOf(listOf<Map<String, Any>>()) }
     var solicitudes by remember { mutableStateOf(listOf<SolicitudRestaurante>()) }
     var cargando by remember { mutableStateOf(true) }
     var errorMensaje by remember { mutableStateOf("") }
@@ -97,17 +97,6 @@ fun AdminSolicitudes(navController: NavHostController) {
                     )
                 }
             }
-
-            // Comentarios pendientes
-            FirebaseFirestore.getInstance().collection("ComentariosPendientes")
-                .whereEqualTo("estado", "PENDIENTE")
-                .get()
-                .addOnSuccessListener { result ->
-                    comentariosPendientes = result.documents.mapNotNull { it.data }
-                }
-                .addOnFailureListener { e ->
-                    errorMensaje = "Error al cargar comentarios: ${e.message}"
-                }
 
             // Solicitudes
             FirebaseFirestore.getInstance().collection("Solicitudes")
@@ -197,49 +186,11 @@ fun AdminSolicitudes(navController: NavHostController) {
             when (selectedTab) {
                 0 -> {
                     // Usuarios
-                    LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                        items(usuarios) { usuario ->
-                            Card(
-                                modifier = Modifier
-                                    .padding(8.dp)
-                                    .fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Text(
-                                        text = "Nombre: ${usuario["nombre"] ?: "Sin nombre"}",
-                                        fontSize = 16.sp
-                                    )
-                                    Text(
-                                        text = "Email: ${usuario["email"] ?: "Sin email"}",
-                                        fontSize = 14.sp
-                                    )
-                                    Text(
-                                        text = "Rol: ${usuario["rol"] ?: "Sin rol"}",
-                                        fontSize = 14.sp
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Button(
-                                        onClick = {
-                                            val userUid = usuario["uid"] as String
-                                            if (userUid != FirebaseAuth.getInstance().currentUser?.uid) {
-                                                FirebaseFirestore.getInstance()
-                                                    .collection("Usuarios")
-                                                    .document(userUid)
-                                                    .delete()
-                                                    .addOnSuccessListener {
-                                                        usuarios = usuarios.filter { it["uid"] != userUid }
-                                                    }
-                                            } else {
-                                                errorMensaje = "No puedes eliminarte a ti mismo."
-                                            }
-                                        },
-                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                                    ) {
-                                        Text("Eliminar")
-                                    }
-                                }
-                            }
-                        }
+                    Button(
+                        onClick = { navController.navigate("adminUsuarios") },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Gestionar Usuarios")
                     }
                 }
                 1 -> {
@@ -301,148 +252,51 @@ fun AdminSolicitudes(navController: NavHostController) {
                 }
                 2 -> {
                     // Comentarios
-                    LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                        items(comentariosPendientes) { comentario ->
-                            Card(
-                                modifier = Modifier
-                                    .padding(8.dp)
-                                    .fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Text(
-                                        text = "Comentario: ${comentario["texto"] ?: "Sin texto"}",
-                                        fontSize = 16.sp
-                                    )
-                                    Text(
-                                        text = "Usuario: ${comentario["usuarioId"] ?: "Desconocido"}",
-                                        fontSize = 14.sp
-                                    )
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceEvenly
-                                    ) {
-                                        Button(
-                                            onClick = {
-                                                FirebaseFirestore.getInstance()
-                                                    .collection("Comentarios")
-                                                    .add(comentario)
-                                                    .addOnSuccessListener {
-                                                        FirebaseFirestore.getInstance()
-                                                            .collection("ComentariosPendientes")
-                                                            .document(comentario["id"] as String)
-                                                            .delete()
-                                                            .addOnSuccessListener {
-                                                                comentariosPendientes = comentariosPendientes.filter { it["id"] != comentario["id"] }
-                                                            }
-                                                    }
-                                            },
-                                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                                        ) {
-                                            Text("Aceptar")
-                                        }
-                                        Button(
-                                            onClick = {
-                                                FirebaseFirestore.getInstance()
-                                                    .collection("ComentariosPendientes")
-                                                    .document(comentario["id"] as String)
-                                                    .delete()
-                                                    .addOnSuccessListener {
-                                                        comentariosPendientes = comentariosPendientes.filter { it["id"] != comentario["id"] }
-                                                    }
-                                            },
-                                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                                        ) {
-                                            Text("Rechazar")
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                    Button(
+                        onClick = { navController.navigate("adminComentarios") },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Gestionar Comentarios")
                     }
                 }
                 3 -> {
                     // Solicitudes
-                    LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                        items(solicitudes) { solicitud ->
-                            Card(
-                                modifier = Modifier
-                                    .padding(8.dp)
-                                    .fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Text(
-                                        text = solicitud.nombre,
-                                        fontSize = 18.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text("Dirección: ${solicitud.direccion}", fontSize = 14.sp)
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = "${solicitud.municipio}, ${solicitud.provincia}",
-                                        fontSize = 12.sp
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = "Latitud: ${solicitud.latitud}, Longitud: ${solicitud.longitud}",
-                                        fontSize = 12.sp
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    solicitud.telefono?.let { Text("Teléfono: $it", fontSize = 12.sp) }
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    solicitud.horario?.let { Text("Horario: $it", fontSize = 12.sp) }
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    solicitud.valoracion?.let { Text("Valoración: $it", fontSize = 12.sp) }
-                                    Spacer(modifier = Modifier.height(8.dp))
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceEvenly
-                                    ) {
-                                        Button(
-                                            onClick = {
-                                                val lugar = Lugar(
-                                                    id = solicitud.id,
-                                                    nombre = solicitud.nombre,
-                                                    direccion = solicitud.direccion,
-                                                    provincia = solicitud.provincia,
-                                                    municipio = solicitud.municipio,
-                                                    latitud = solicitud.latitud,
-                                                    longitud = solicitud.longitud,
-                                                    telefono = solicitud.telefono,
-                                                    horario = solicitud.horario,
-                                                    valoracion = solicitud.valoracion
-                                                )
-                                                LugarRepository().agregarLugar(lugar) { success ->
-                                                    if (success) {
-                                                        FirebaseFirestore.getInstance()
-                                                            .collection("Solicitudes")
-                                                            .document(solicitud.id)
-                                                            .delete()
-                                                            .addOnSuccessListener {
-                                                                solicitudes = solicitudes.filter { it.id != solicitud.id }
-                                                            }
-                                                    }
-                                                }
-                                            },
-                                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                                        ) {
-                                            Text("Aprobar")
-                                        }
-                                        Button(
-                                            onClick = {
-                                                FirebaseFirestore.getInstance()
-                                                    .collection("Solicitudes")
-                                                    .document(solicitud.id)
-                                                    .delete()
-                                                    .addOnSuccessListener {
-                                                        solicitudes = solicitudes.filter { it.id != solicitud.id }
-                                                    }
-                                            },
-                                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                                        ) {
-                                            Text("Rechazar")
-                                        }
+                    if (solicitudes.isEmpty()) {
+                        Text(
+                            text = "No hay solicitudes pendientes.",
+                            fontSize = 16.sp,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+                    } else {
+                        LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                            items(solicitudes) { solicitud ->
+                                Card(
+                                    modifier = Modifier
+                                        .padding(8.dp)
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            navController.navigate("adminDatosSolicitudes/${solicitud.id}")
+                                        },
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                                ) {
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        Text(
+                                            text = solicitud.nombre,
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "Dirección: ${solicitud.direccion}",
+                                            fontSize = 14.sp,
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "${solicitud.municipio}, ${solicitud.provincia}",
+                                            fontSize = 14.sp,
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                        )
                                     }
                                 }
                             }
