@@ -19,6 +19,7 @@ import com.example.locmabar.vista.SolicitudNuevo
 import com.example.locmabar.vista.VentHomeAdmin
 import com.example.locmabar.vista.Ventana2
 import com.example.locmabar.vista.VentanaDetalles
+import com.example.locmabar.vista.VentanaPerfil // Añadir import
 import java.net.URLDecoder
 
 @Composable
@@ -27,6 +28,7 @@ fun Navigation(navController: NavHostController, modifier: Modifier = Modifier) 
         composable("login") { Login(navController = navController) }
         composable("ventana2") { Ventana2(navController = navController) }
         composable("ventHomeAdmin") { VentHomeAdmin(navController = navController) }
+        composable("ventanaPerfil") { VentanaPerfil(navController = navController) } // Añadir ruta
         composable("registro") { Registro(navController = navController) }
         composable(
             route = "detallesBar/{lugarId}?latitudUsuario={latitudUsuario}&longitudUsuario={longitudUsuario}",
