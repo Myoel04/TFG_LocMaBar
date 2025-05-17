@@ -34,7 +34,7 @@ fun AdminUsuarios(navController: NavHostController) {
                     .await()
                 usuarios = querySnapshot.documents.mapNotNull { doc ->
                     val usuario = doc.toObject(Usuario::class.java)
-                    usuario?.copy(id = doc.id)
+                    usuario?.copy(uid = doc.id)
                 }
             } catch (e: Exception) {
                 errorMensaje = "Error al cargar usuarios: ${e.message}"
@@ -85,7 +85,7 @@ fun AdminUsuarios(navController: NavHostController) {
                                 .padding(8.dp)
                                 .fillMaxWidth()
                                 .clickable {
-                                    navController.navigate("adminDatosUsuarios/${usuario.id}")
+                                    navController.navigate("adminDatosUsuarios/${usuario.uid}")
                                 },
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                         ) {

@@ -1,17 +1,34 @@
 package com.example.locmabar.modelo
 
-import java.util.UUID
-
 data class SolicitudRestaurante(
-    val id: String = UUID.randomUUID().toString(),
-    val nombre: String,
-    val direccion: String,
-    val provincia: String,
-    val municipio: String,
-    val latitud: Double,
-    val longitud: Double,
+    val id: String? = "",
+    val nombre: String? = null,
+    val direccion: String? = null,
+    val provincia: String? = null,
+    val municipio: String? = null,
+    val latitud: String? = null,
+    val longitud: String? = null,
     val telefono: String? = null,
     val horario: String? = null,
     val valoracion: String? = null,
-    val estado: String = "PENDIENTE"
-)
+    val estado: String? = "PENDIENTE"
+) {
+    // Propiedades computadas para obtener latitud y longitud como Double
+    val latitudDouble: Double
+        get() = latitud?.toDoubleOrNull() ?: 0.0
+
+    val longitudDouble: Double
+        get() = longitud?.toDoubleOrNull() ?: 0.0
+
+    // Método para validar si la solicitud tiene todos los campos necesarios
+    fun isValid(): Boolean {
+        return !id.isNullOrBlank() &&
+                !nombre.isNullOrBlank() &&
+                !direccion.isNullOrBlank() &&
+                !provincia.isNullOrBlank() &&
+                !municipio.isNullOrBlank() &&
+                !latitud.isNullOrBlank() &&
+                !longitud.isNullOrBlank() &&
+                !estado.isNullOrBlank()
+    }
+}

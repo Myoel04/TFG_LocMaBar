@@ -18,7 +18,6 @@ import com.example.locmabar.vista.Registro
 import com.example.locmabar.vista.SolicitudNuevo
 import com.example.locmabar.vista.Ventana2
 import com.example.locmabar.vista.VentanaDetalles
-import com.google.gson.Gson
 import java.net.URLDecoder
 
 @Composable
@@ -28,38 +27,24 @@ fun Navigation(navController: NavHostController, modifier: Modifier = Modifier) 
         composable("ventana2") { Ventana2(navController = navController) }
         composable("registro") { Registro(navController = navController) }
         composable(
-            route = "detallesBar/{lugarJson}?latitudUsuario={latitudUsuario}&longitudUsuario={longitudUsuario}",
+            route = "detallesBar/{lugarId}?latitudUsuario={latitudUsuario}&longitudUsuario={longitudUsuario}",
             arguments = listOf(
-                navArgument("lugarJson") { type = NavType.StringType },
+                navArgument("lugarId") { type = NavType.StringType },
                 navArgument("latitudUsuario") { type = NavType.StringType; nullable = true },
                 navArgument("longitudUsuario") { type = NavType.StringType; nullable = true }
             )
         ) { backStackEntry ->
-            val lugarJson = backStackEntry.arguments?.getString("lugarJson") ?: ""
-            val decodedLugarJson = URLDecoder.decode(lugarJson, "UTF-8")
-            val lugar = try {
-                Gson().fromJson(decodedLugarJson, com.example.locmabar.modelo.Lugar::class.java)
-            } catch (e: Exception) {
-                null // Manejar error si el JSON es inválido
-            }
+            val lugarId = backStackEntry.arguments?.getString("lugarId") ?: ""
             val latitudUsuarioStr = backStackEntry.arguments?.getString("latitudUsuario")
             val longitudUsuarioStr = backStackEntry.arguments?.getString("longitudUsuario")
-            val latitudUsuario = latitudUsuarioStr?.toDoubleOrNull()
-            val longitudUsuario = longitudUsuarioStr?.toDoubleOrNull()
+            val latitudUsuario = latitudUsuarioStr?.toDoubleOrNull() ?: 0.0
+            val longitudUsuario = longitudUsuarioStr?.toDoubleOrNull() ?: 0.0
 
             VentanaDetalles(
                 navController = navController,
-                lugar = lugar ?: com.example.locmabar.modelo.Lugar(
-                    id = "",
-                    nombre = "",
-                    direccion = "",
-                    provincia = "",
-                    municipio = "",
-                    latitud = 0.0,
-                    longitud = 0.0
-                ), // Valor por defecto si falla el parsing
-                latitudUsuario = latitudUsuario,
-                longitudUsuario = longitudUsuario
+                lugarId = lugarId,
+                latitudUsuario = if (latitudUsuario != 0.0) latitudUsuario else null,
+                longitudUsuario = if (longitudUsuario != 0.0) longitudUsuario else null
             )
         }
         composable(

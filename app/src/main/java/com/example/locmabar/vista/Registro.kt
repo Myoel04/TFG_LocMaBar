@@ -41,6 +41,9 @@ fun Registro(navController: NavController) {
     val errorMensaje = remember { mutableStateOf<String?>(null) }
     var cargando by remember { mutableStateOf(false) }
 
+    // Lista de correos permitidos para ser administradores
+    val adminEmails = listOf("yosoymyoel@gmail.com", "lili@gmail.com") // Añade los correos deseados
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -183,12 +186,15 @@ fun Registro(navController: NavController) {
                                     .await()
                                 val user = result.user
                                 if (user != null) {
+                                    // Determinar el rol basado en el correo
+                                    val rol = if (email.value in adminEmails) "admin" else "usuario"
+
                                     // Crear documento en la colección "Usuarios"
                                     val usuario = Usuario(
-                                        id = user.uid,
+                                        uid = user.uid,
                                         nombre = nombre.value,
                                         email = email.value,
-                                        rol = "usuario" // Rol por defecto para usuarios normales
+                                        rol = rol
                                     )
                                     firestore.collection("Usuarios")
                                         .document(user.uid)

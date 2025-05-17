@@ -24,6 +24,8 @@ fun AdminDatosUsuarios(
     var cargando by remember { mutableStateOf(true) }
     var errorMensaje by remember { mutableStateOf("") }
     var mensajeExito by remember { mutableStateOf(false) }
+    var rolSeleccionado by remember { mutableStateOf("") }
+    var expanded by remember { mutableStateOf(false) } // Estado para controlar la expansión del menú
     val scope = rememberCoroutineScope()
 
     // Cargar datos del usuario desde Firebase
@@ -35,7 +37,10 @@ fun AdminDatosUsuarios(
                     .document(usuarioId)
                     .get()
                     .await()
-                usuario = documentSnapshot.toObject(Usuario::class.java)?.copy(id = documentSnapshot.id)
+                usuario = documentSnapshot.toObject(Usuario::class.java)?.copy(uid = documentSnapshot.id)
+                usuario?.let {
+                    rolSeleccionado = it.rol
+                }
             } catch (e: Exception) {
                 errorMensaje = "Error al cargar usuario: ${e.message}"
             } finally {
@@ -70,7 +75,7 @@ fun AdminDatosUsuarios(
                 )
             } else if (mensajeExito) {
                 Text(
-                    text = "Usuario eliminado con éxito.",
+                    text = "Usuario actualizado/eliminado con éxito.",
                     color = MaterialTheme.colorScheme.primary,
                     fontSize = 16.sp,
                     modifier = Modifier.padding(bottom = 16.dp)
@@ -96,17 +101,46 @@ fun AdminDatosUsuarios(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
-                OutlinedTextField(
-                    value = usuario!!.rol,
-                    onValueChange = { /* Read-only */ },
-                    label = { Text("Rol") },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = false,
-                    singleLine = true
+                // Selector para cambiar el rol
+                Text(
+                    text = "Rol",
+                    fontSize = 16.sp,
+                    modifier = Modifier.padding(bottom = 8.dp)
                 )
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded }
+                ) {
+                    OutlinedTextField(
+                        value = rolSeleccionado,
+                        onValueChange = { /* Read-only para mostrar */ },
+                        label = { Text("Rol") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(),
+                        readOnly = true,
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                        }
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        listOf("usuario", "admin").forEach { rol ->
+                            DropdownMenuItem(
+                                text = { Text(rol) },
+                                onClick = {
+                                    rolSeleccionado = rol
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Botones "Eliminar Usuario" y "Cancelar"
+                // Botones para guardar cambios, eliminar usuario y cancelar
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
@@ -115,14 +149,36 @@ fun AdminDatosUsuarios(
                         onClick = {
                             scope.launch {
                                 try {
+                                    // Actualizar el rol del usuario en Firestore
+                                    FirebaseFirestore.getInstance()
+                                        .collection("Usuarios")
+                                        .document(usuario!!.uid)
+                                        .update("rol", rolSeleccionado)
+                                        .await()
+                                    mensajeExito = true
+                                    navController.popBackStack()
+                                } catch (e: Exception) {
+                                    errorMensaje = "Error al actualizar rol: ${e.message}"
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("Guardar Cambios")
+                    }
+
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                try {
                                     val currentUserUid = FirebaseAuth.getInstance().currentUser?.uid
-                                    if (usuario!!.id == currentUserUid) {
+                                    if (usuario!!.uid == currentUserUid) {
                                         errorMensaje = "No puedes eliminarte a ti mismo."
                                         return@launch
                                     }
                                     FirebaseFirestore.getInstance()
                                         .collection("Usuarios")
-                                        .document(usuario!!.id)
+                                        .document(usuario!!.uid)
                                         .delete()
                                         .await()
                                     mensajeExito = true

@@ -22,7 +22,6 @@ import com.google.gson.Gson
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
-import java.util.UUID
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -292,15 +291,20 @@ fun SolicitudNuevo(
                         cargando = true
                         errorMensaje = ""
 
-                        val solicitudId = UUID.randomUUID().toString()
+                        // Generar un ID único para la solicitud usando Firestore
+                        val solicitudId = FirebaseFirestore.getInstance()
+                            .collection("Solicitudes")
+                            .document()
+                            .id
+
                         val solicitud = SolicitudRestaurante(
                             id = solicitudId,
                             nombre = nombre,
                             direccion = direccion,
                             provincia = provinciaSeleccionada,
                             municipio = municipioSeleccionado,
-                            latitud = latitud!!,
-                            longitud = longitud!!,
+                            latitud = latitud.toString(), // Convertir a String
+                            longitud = longitud.toString(), // Convertir a String
                             telefono = telefono.ifBlank { null },
                             horario = horario.ifBlank { null },
                             valoracion = valoracion.ifBlank { null },

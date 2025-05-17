@@ -77,146 +77,170 @@ fun AdminDatosSolicitudes(
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
             } else if (solicitud != null) {
-                OutlinedTextField(
-                    value = solicitud!!.nombre,
-                    onValueChange = { /* Read-only */ },
-                    label = { Text("Nombre del Restaurante") },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = false,
-                    singleLine = true
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = solicitud!!.direccion,
-                    onValueChange = { /* Read-only */ },
-                    label = { Text("Dirección") },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = false,
-                    singleLine = true
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = solicitud!!.municipio,
-                    onValueChange = { /* Read-only */ },
-                    label = { Text("Municipio") },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = false,
-                    singleLine = true
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = solicitud!!.provincia,
-                    onValueChange = { /* Read-only */ },
-                    label = { Text("Provincia") },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = false,
-                    singleLine = true
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = "Latitud: ${solicitud!!.latitud}, Longitud: ${solicitud!!.longitud}",
-                    onValueChange = { /* Read-only */ },
-                    label = { Text("Coordenadas") },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = false,
-                    singleLine = true
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                solicitud?.telefono?.let {
+                if (!solicitud!!.isValid()) {
+                    Text(
+                        text = "La solicitud no tiene todos los datos necesarios.",
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 16.sp,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                } else {
                     OutlinedTextField(
-                        value = it,
+                        value = solicitud!!.nombre ?: "",
                         onValueChange = { /* Read-only */ },
-                        label = { Text("Teléfono (opcional)") },
+                        label = { Text("Nombre del Restaurante") },
                         modifier = Modifier.fillMaxWidth(),
                         enabled = false,
                         singleLine = true
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                }
 
-                solicitud?.horario?.let {
                     OutlinedTextField(
-                        value = it,
+                        value = solicitud!!.direccion ?: "",
                         onValueChange = { /* Read-only */ },
-                        label = { Text("Horario (opcional)") },
+                        label = { Text("Dirección") },
                         modifier = Modifier.fillMaxWidth(),
                         enabled = false,
                         singleLine = true
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                }
 
-                solicitud?.valoracion?.let {
                     OutlinedTextField(
-                        value = it,
+                        value = solicitud!!.municipio ?: "",
                         onValueChange = { /* Read-only */ },
-                        label = { Text("Valoración (opcional)") },
+                        label = { Text("Municipio") },
                         modifier = Modifier.fillMaxWidth(),
                         enabled = false,
                         singleLine = true
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = solicitud!!.provincia ?: "",
+                        onValueChange = { /* Read-only */ },
+                        label = { Text("Provincia") },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = false,
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                // Botones "Aceptar Solicitud" y "Cancelar"
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    Button(
-                        onClick = {
-                            scope.launch {
-                                try {
-                                    // Aprobar solicitud: mover a la colección "12345" y eliminar de "Solicitudes"
-                                    val lugar = Lugar(
-                                        id = solicitud!!.id,
-                                        nombre = solicitud!!.nombre,
-                                        direccion = solicitud!!.direccion,
-                                        provincia = solicitud!!.provincia,
-                                        municipio = solicitud!!.municipio,
-                                        latitud = solicitud!!.latitud,
-                                        longitud = solicitud!!.longitud,
-                                        telefono = solicitud!!.telefono,
-                                        horario = solicitud!!.horario,
-                                        valoracion = solicitud!!.valoracion
-                                    )
-                                    LugarRepository().agregarLugar(lugar) { success ->
-                                        if (success) {
-                                            FirebaseFirestore.getInstance()
-                                                .collection("Solicitudes")
-                                                .document(solicitud!!.id)
-                                                .delete()
-                                                .addOnSuccessListener {
-                                                    mensajeExito = true
-                                                    navController.popBackStack()
-                                                }
-                                        }
-                                    }
-                                } catch (e: Exception) {
-                                    errorMensaje = "Error al aceptar solicitud: ${e.message}"
-                                }
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                    ) {
-                        Text("Aceptar Solicitud")
+                    OutlinedTextField(
+                        value = "Latitud: ${solicitud!!.latitud ?: "0.0"}, Longitud: ${solicitud!!.longitud ?: "0.0"}",
+                        onValueChange = { /* Read-only */ },
+                        label = { Text("Coordenadas") },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = false,
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    solicitud?.telefono?.let { telefono ->
+                        OutlinedTextField(
+                            value = telefono,
+                            onValueChange = { /* Read-only */ },
+                            label = { Text("Teléfono (opcional)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = false,
+                            singleLine = true
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
 
-                    Button(
-                        onClick = {
-                            // Regresar a AdminSolicitudes sin hacer cambios
-                            navController.popBackStack()
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    solicitud?.horario?.let { horario ->
+                        OutlinedTextField(
+                            value = horario,
+                            onValueChange = { /* Read-only */ },
+                            label = { Text("Horario (opcional)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = false,
+                            singleLine = true
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
+                    solicitud?.valoracion?.let { valoracion ->
+                        OutlinedTextField(
+                            value = valoracion,
+                            onValueChange = { /* Read-only */ },
+                            label = { Text("Valoración (opcional)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = false,
+                            singleLine = true
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Botones "Aceptar Solicitud" y "Cancelar"
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        Text("Cancelar")
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    try {
+                                        // Generar un nuevo ID único para el Lugar
+                                        val newLugarId = FirebaseFirestore.getInstance()
+                                            .collection("Locales")
+                                            .document()
+                                            .id
+
+                                        // Crear el Lugar con el nuevo ID
+                                        val lugar = Lugar(
+                                            id = newLugarId,
+                                            nombre = solicitud!!.nombre!!,
+                                            direccion = solicitud!!.direccion!!,
+                                            provincia = solicitud!!.provincia!!,
+                                            municipio = solicitud!!.municipio!!,
+                                            latitud = solicitud!!.latitud, // Usar directamente latitud como String?
+                                            longitud = solicitud!!.longitud, // Usar directamente longitud como String?
+                                            telefono = solicitud!!.telefono,
+                                            horario = solicitud!!.horario,
+                                            valoracion = solicitud!!.valoracion
+                                        )
+
+                                        // Agregar el Lugar a la colección "Locales"
+                                        LugarRepository().agregarLugar(lugar) { success ->
+                                            if (success) {
+                                                // Eliminar la solicitud de la colección "Solicitudes"
+                                                FirebaseFirestore.getInstance()
+                                                    .collection("Solicitudes")
+                                                    .document(solicitud!!.id!!)
+                                                    .delete()
+                                                    .addOnSuccessListener {
+                                                        mensajeExito = true
+                                                        navController.popBackStack()
+                                                    }
+                                                    .addOnFailureListener { e ->
+                                                        errorMensaje = "Error al eliminar solicitud: ${e.message}"
+                                                    }
+                                            } else {
+                                                errorMensaje = "Error al agregar lugar a Locales."
+                                            }
+                                        }
+                                    } catch (e: Exception) {
+                                        errorMensaje = "Error al aceptar solicitud: ${e.message}"
+                                    }
+                                }
+                            },
+                            enabled = solicitud!!.isValid(),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        ) {
+                            Text("Aceptar Solicitud")
+                        }
+
+                        Button(
+                            onClick = {
+                                // Regresar a AdminSolicitudes sin hacer cambios
+                                navController.popBackStack()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                        ) {
+                            Text("Cancelar")
+                        }
                     }
                 }
             } else {

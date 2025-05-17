@@ -125,11 +125,9 @@ fun Ventana2(navController: NavHostController) {
     val gpsHabilitado = gestorUbicacion.isProviderEnabled(LocationManager.GPS_PROVIDER)
     val redHabilitada = gestorUbicacion.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
 
-    // Solicitar permiso y ubicación
-    LaunchedEffect(estadoPermisoUbicacion) {
-        if (!estadoPermisoUbicacion.status.isGranted) {
-            estadoPermisoUbicacion.launchPermissionRequest()
-        } else {
+    // Manejar permisos y búsqueda de lugares
+    LaunchedEffect(estadoPermisoUbicacion.status) {
+        if (estadoPermisoUbicacion.status.isGranted) {
             if (gpsHabilitado || redHabilitada) {
                 cargando = true
                 permisoDenegado = false
@@ -142,33 +140,41 @@ fun Ventana2(navController: NavHostController) {
                         longitudUsuario = ubicacion.longitude
                         println("Ubicación obtenida: lat=$latitudUsuario, lon=$longitudUsuario")
 
-                        lugarRepository.obtenerTodosLugares { todosLugares, error ->
-                            if (error != null) {
-                                errorMensaje = error
-                                cargando = false
-                                falloUbicacion = true
-                                return@obtenerTodosLugares
-                            }
+                        // Llamada a la función suspend dentro de un ámbito de corrutina
+                        coroutineScope.launch {
+                            lugarRepository.obtenerTodosLugares { todosLugares, error ->
+                                if (error != null) {
+                                    errorMensaje = error
+                                    cargando = false
+                                    falloUbicacion = true
+                                    return@obtenerTodosLugares
+                                }
 
-                            val lugaresFiltrados = todosLugares.filter { lugar ->
-                                val distancia = calcularDistancia(
-                                    latitudUsuario!!,
-                                    longitudUsuario!!,
-                                    lugar.latitud,
-                                    lugar.longitud
-                                )
-                                println("Distancia a ${lugar.nombre}: $distancia km")
-                                distancia < 50.0
-                            }
-                            lugares = lugaresFiltrados
-                            cargando = false
-                            if (lugaresFiltrados.isEmpty()) {
-                                errorMensaje = "No se encontraron lugares cercanos (menos de 50 km)."
-                                falloUbicacion = true
-                            } else {
-                                cameraPositionState.position = CameraPosition.fromLatLngZoom(
-                                    LatLng(latitudUsuario!!, longitudUsuario!!), 12f
-                                )
+                                val lugaresFiltrados = todosLugares.filter { lugar ->
+                                    lugar.isValid() && latitudUsuario != null && longitudUsuario != null && lugar.latitudDouble != null && lugar.longitudDouble != null && {
+                                        val distancia = calcularDistancia(
+                                            latitudUsuario!!,
+                                            longitudUsuario!!,
+                                            lugar.latitudDouble!!,
+                                            lugar.longitudDouble!!
+                                        )
+                                        println("Distancia a ${lugar.nombre}: $distancia km (Provincia=${lugar.provincia}, Municipio=${lugar.municipio})")
+                                        distancia < 100.0 // Aumentamos el rango a 100 km para pruebas
+                                    }()
+                                }
+                                lugares = lugaresFiltrados
+                                cargando = false
+                                if (lugaresFiltrados.isEmpty()) {
+                                    errorMensaje = "No se encontraron lugares cercanos (menos de 100 km)."
+                                    falloUbicacion = true
+                                } else {
+                                    val primerLugar = lugaresFiltrados.firstOrNull()
+                                    if (primerLugar != null && primerLugar.latitudDouble != null && primerLugar.longitudDouble != null) {
+                                        cameraPositionState.position = CameraPosition.fromLatLngZoom(
+                                            LatLng(primerLugar.latitudDouble!!, primerLugar.longitudDouble!!), 12f
+                                        )
+                                    }
+                                }
                             }
                         }
                     },
@@ -183,9 +189,10 @@ fun Ventana2(navController: NavHostController) {
                 cargando = false
                 falloUbicacion = true
             }
-        }
-        if (!estadoPermisoUbicacion.status.isGranted && !estadoPermisoUbicacion.status.shouldShowRationale) {
+        } else if (!estadoPermisoUbicacion.status.isGranted && !estadoPermisoUbicacion.status.shouldShowRationale) {
             permisoDenegado = true
+        } else if (!estadoPermisoUbicacion.status.isGranted) {
+            estadoPermisoUbicacion.launchPermissionRequest()
         }
     }
 
@@ -351,21 +358,26 @@ fun Ventana2(navController: NavHostController) {
                         if (comunidadSeleccionada.isNotEmpty() && provinciaSeleccionada.isNotEmpty() && municipioSeleccionado.isNotEmpty()) {
                             cargando = true
                             errorMensaje = ""
-                            lugarRepository.obtenerLugaresPorMunicipio(provinciaSeleccionada, municipioSeleccionado) { resultado, error ->
-                                lugares = resultado
-                                cargando = false
-                                falloUbicacion = false
-                                if (error != null) {
-                                    errorMensaje = error
-                                    return@obtenerLugaresPorMunicipio
-                                }
-                                if (resultado.isEmpty()) {
-                                    errorMensaje = "No se encontraron lugares en $municipioSeleccionado, $provinciaSeleccionada."
-                                } else {
-                                    val primerLugar = resultado.first()
-                                    cameraPositionState.position = CameraPosition.fromLatLngZoom(
-                                        LatLng(primerLugar.latitud, primerLugar.longitud), 12f
-                                    )
+                            // Llamada a la función suspend dentro de un ámbito de corrutina
+                            coroutineScope.launch {
+                                lugarRepository.obtenerLugaresPorMunicipio(provinciaSeleccionada, municipioSeleccionado) { resultado, error ->
+                                    lugares = resultado.filter { it.isValid() }
+                                    cargando = false
+                                    falloUbicacion = false
+                                    if (error != null) {
+                                        errorMensaje = error
+                                        return@obtenerLugaresPorMunicipio
+                                    }
+                                    if (resultado.isEmpty()) {
+                                        errorMensaje = "No se encontraron lugares en $municipioSeleccionado, $provinciaSeleccionada."
+                                    } else {
+                                        val primerLugar = resultado.firstOrNull { it.isValid() }
+                                        if (primerLugar != null && primerLugar.latitudDouble != null && primerLugar.longitudDouble != null) {
+                                            cameraPositionState.position = CameraPosition.fromLatLngZoom(
+                                                LatLng(primerLugar.latitudDouble!!, primerLugar.longitudDouble!!), 12f
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -383,14 +395,24 @@ fun Ventana2(navController: NavHostController) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(300.dp),
-                    cameraPositionState = cameraPositionState
+                    cameraPositionState = cameraPositionState,
+                    properties = MapProperties(isMyLocationEnabled = latitudUsuario != null && longitudUsuario != null),
+                    uiSettings = MapUiSettings(
+                        zoomControlsEnabled = true,
+                        myLocationButtonEnabled = true,
+                        scrollGesturesEnabled = true,
+                        zoomGesturesEnabled = true,
+                        rotationGesturesEnabled = true
+                    )
                 ) {
                     lugares.forEach { lugar ->
-                        Marker(
-                            state = MarkerState(position = LatLng(lugar.latitud, lugar.longitud)),
-                            title = lugar.nombre,
-                            snippet = lugar.direccion
-                        )
+                        if (lugar.latitudDouble != null && lugar.longitudDouble != null) {
+                            Marker(
+                                state = MarkerState(position = LatLng(lugar.latitudDouble!!, lugar.longitudDouble!!)),
+                                title = lugar.nombre,
+                                snippet = lugar.direccion
+                            )
+                        }
                     }
                 }
 
@@ -403,17 +425,33 @@ fun Ventana2(navController: NavHostController) {
                                 .padding(8.dp)
                                 .fillMaxWidth()
                                 .clickable {
-                                    val lugarJson = Gson().toJson(lugar)
-                                    val encodedLugarJson = URLEncoder.encode(lugarJson, "UTF-8")
-                                    navController.navigate("detallesBar/$encodedLugarJson/${latitudUsuario ?: 0.0}/${longitudUsuario ?: 0.0}")
+                                    val latitud = latitudUsuario?.toString() ?: "0.0"
+                                    val longitud = longitudUsuario?.toString() ?: "0.0"
+                                    val route = "detallesBar/${lugar.id}?latitudUsuario=$latitud&longitudUsuario=$longitud"
+                                    println("Navigating to: $route with lugarId: ${lugar.id}")
+                                    try {
+                                        navController.navigate(route)
+                                    } catch (e: Exception) {
+                                        println("Navigation failed: ${e.message}")
+                                    }
                                 }
                         ) {
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Text(lugar.nombre, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    text = lugar.nombre ?: "Sin nombre",
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                                 Spacer(modifier = Modifier.height(4.dp))
-                                Text(lugar.direccion, fontSize = 14.sp)
+                                Text(
+                                    text = lugar.direccion ?: "Sin dirección",
+                                    fontSize = 14.sp
+                                )
                                 Spacer(modifier = Modifier.height(4.dp))
-                                Text("${lugar.municipio}, ${lugar.provincia}", fontSize = 12.sp)
+                                Text(
+                                    text = "${lugar.municipio ?: "Sin municipio"}, ${lugar.provincia ?: "Sin provincia"}",
+                                    fontSize = 12.sp
+                                )
                             }
                         }
                     }
