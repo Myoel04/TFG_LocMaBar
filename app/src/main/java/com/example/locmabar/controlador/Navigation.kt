@@ -16,6 +16,7 @@ import com.example.locmabar.vista.AdminUsuarios
 import com.example.locmabar.vista.Login
 import com.example.locmabar.vista.Registro
 import com.example.locmabar.vista.SolicitudNuevo
+import com.example.locmabar.vista.VentHomeAdmin
 import com.example.locmabar.vista.Ventana2
 import com.example.locmabar.vista.VentanaDetalles
 import java.net.URLDecoder
@@ -25,6 +26,7 @@ fun Navigation(navController: NavHostController, modifier: Modifier = Modifier) 
     NavHost(navController = navController, startDestination = "login", modifier = modifier) {
         composable("login") { Login(navController = navController) }
         composable("ventana2") { Ventana2(navController = navController) }
+        composable("ventHomeAdmin") { VentHomeAdmin(navController = navController) }
         composable("registro") { Registro(navController = navController) }
         composable(
             route = "detallesBar/{lugarId}?latitudUsuario={latitudUsuario}&longitudUsuario={longitudUsuario}",

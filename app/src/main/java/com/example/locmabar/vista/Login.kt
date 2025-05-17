@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
@@ -28,6 +29,7 @@ import kotlinx.coroutines.tasks.await
 @Composable
 fun Login(navController: NavController) {
     val auth = FirebaseAuth.getInstance()
+    val firestore = FirebaseFirestore.getInstance()
     val scope = rememberCoroutineScope()
 
     // Estados para los campos de entrada
@@ -120,11 +122,32 @@ fun Login(navController: NavController) {
                             cargando = true
                             scope.launch {
                                 try {
-                                    auth.signInWithEmailAndPassword(email.value, contrasena.value)
+                                    val result = auth.signInWithEmailAndPassword(email.value, contrasena.value)
                                         .await()
-                                    navController.navigate("ventana2")
+                                    val user = result.user
+                                    if (user != null) {
+                                        // Consultar el rol del usuario en Firestore
+                                        val userDoc = firestore.collection("Usuarios")
+                                            .document(user.uid)
+                                            .get()
+                                            .await()
+                                        val rol = userDoc.getString("rol")
+                                        println("Usuario autenticado: UID=${user.uid}, Email=${email.value}, Rol=$rol")
+                                        if (rol == "admin") {
+                                            navController.navigate("ventHomeAdmin") {
+                                                popUpTo("login") { inclusive = true }
+                                            }
+                                        } else {
+                                            navController.navigate("ventana2") {
+                                                popUpTo("login") { inclusive = true }
+                                            }
+                                        }
+                                    } else {
+                                        errorMessage.value = "Error: usuario nulo después de autenticar"
+                                    }
                                 } catch (e: Exception) {
                                     errorMessage.value = "Error: ${e.localizedMessage ?: "Desconocido"}"
+                                    println("Error al iniciar sesión: ${e.message}")
                                 } finally {
                                     cargando = false
                                 }

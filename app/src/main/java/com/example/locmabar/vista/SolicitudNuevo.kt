@@ -203,29 +203,38 @@ fun SolicitudNuevo(
                     errorMensaje = ""
 
                     val direccionCompleta = "$direccion, $municipioSeleccionado, $provinciaSeleccionada, Spain"
+                    println("Intentando geocodificar dirección: $direccionCompleta")
+
                     RetrofitClient.geocodingService.getLatLngFromAddress(
                         direccionCompleta,
-                        contexto.getString(R.string.google_maps_key)
+                        contexto.getString(R.string.google_maps_key),
+                        region = "es", // Especificar región
+                        language = "es" // Especificar idioma
                     ).enqueue(object : Callback<GeocodingResponse> {
                         override fun onResponse(call: Call<GeocodingResponse>, response: Response<GeocodingResponse>) {
                             cargandoGeocodificacion = false
                             if (response.isSuccessful) {
                                 val geocodingResponse = response.body()
+                                println("Respuesta de la API: Status=${geocodingResponse?.status}, Results=${geocodingResponse?.results?.size}")
                                 if (geocodingResponse?.status == "OK" && geocodingResponse.results.isNotEmpty()) {
                                     val location = geocodingResponse.results[0].geometry.location
                                     latitud = location.lat
                                     longitud = location.lng
+                                    println("Coordenadas obtenidas: Latitud=$latitud, Longitud=$longitud")
                                 } else {
                                     errorMensaje = "No se encontraron coordenadas para la dirección: $direccionCompleta. Intenta con una dirección más específica."
+                                    println("Error de la API: ${geocodingResponse?.status}, Mensaje: ${geocodingResponse?.error_message}")
                                 }
                             } else {
                                 errorMensaje = "Error al conectar con la API de Geocodificación: ${response.message()}"
+                                println("Error HTTP: ${response.code()} - ${response.message()}")
                             }
                         }
 
                         override fun onFailure(call: Call<GeocodingResponse>, t: Throwable) {
                             cargandoGeocodificacion = false
                             errorMensaje = "Error al obtener coordenadas: ${t.message}"
+                            println("Fallo en la solicitud: ${t.message}")
                         }
                     })
                 },
