@@ -2,6 +2,9 @@ package com.example.locmabar.vista
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,6 +38,9 @@ fun VentanaPerfil(navController: NavHostController) {
     var nombreEditado by remember { mutableStateOf("") }
     var mostrarDialogoEliminar by remember { mutableStateOf(false) }
 
+    // Estado para la barra de navegación inferior
+    var selectedItem by remember { mutableStateOf("perfil") }
+
     // Cargar datos del usuario desde Firestore
     LaunchedEffect(user) {
         if (user == null) {
@@ -61,174 +67,183 @@ fun VentanaPerfil(navController: NavHostController) {
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = "Perfil de Usuario",
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-
-        if (cargando) {
-            CircularProgressIndicator()
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("Cargando perfil...", fontSize = 14.sp)
-        } else if (errorMensaje.isNotEmpty()) {
-            Text(
-                text = errorMensaje,
-                fontSize = 16.sp,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-            Button(
-                onClick = { navController.navigate("login") },
-                modifier = Modifier.fillMaxWidth()
+    // Usamos Scaffold para añadir la barra de navegación inferior
+    Scaffold(
+        bottomBar = {
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
             ) {
-                Text("Iniciar Sesión")
-            }
-        } else if (usuario != null) {
-            // Mostrar mensaje de éxito si se actualiza el perfil
-            if (mensajeExito.isNotEmpty()) {
-                Text(
-                    text = mensajeExito,
-                    fontSize = 16.sp,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(bottom = 16.dp)
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Home, contentDescription = "Locales") },
+                    label = { Text("Locales") },
+                    selected = selectedItem == "locales",
+                    onClick = {
+                        selectedItem = "locales"
+                        navController.navigate("ventana2") {
+                            popUpTo(navController.graph.startDestinationId) { inclusive = false }
+                        }
+                    }
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Person, contentDescription = "Perfil") },
+                    label = { Text("Perfil") },
+                    selected = selectedItem == "perfil",
+                    onClick = {
+                        selectedItem = "perfil"
+                        // No navegamos porque ya estamos en VentanaPerfil
+                    }
                 )
             }
-
-            // Campo Nombre (Editable)
-            OutlinedTextField(
-                value = nombreEditado,
-                onValueChange = { nombreEditado = it },
-                label = { Text("Nombre") },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = modoEdicion,
-                singleLine = true
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Perfil de Usuario",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 16.dp)
             )
-            Spacer(modifier = Modifier.height(8.dp))
 
-            // Campo Correo (Solo Lectura)
-            OutlinedTextField(
-                value = usuario!!.email,
-                onValueChange = { /* Solo lectura */ },
-                label = { Text("Correo Electrónico") },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = false,
-                singleLine = true
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Campo Rol (Solo Lectura)
-            OutlinedTextField(
-                value = usuario!!.rol,
-                onValueChange = { /* Solo lectura */ },
-                label = { Text("Rol") },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = false,
-                singleLine = true
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Botones de Edición
-            if (modoEdicion) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    Button(
-                        onClick = {
-                            if (nombreEditado.isBlank()) {
-                                errorMensaje = "El nombre no puede estar vacío."
-                                return@Button
-                            }
-
-                            scope.launch {
-                                try {
-                                    firestore.collection("Usuarios")
-                                        .document(user!!.uid)
-                                        .update("nombre", nombreEditado)
-                                        .await()
-                                    usuario = usuario!!.copy(nombre = nombreEditado)
-                                    mensajeExito = "Nombre actualizado con éxito."
-                                    errorMensaje = ""
-                                    modoEdicion = false
-                                } catch (e: Exception) {
-                                    errorMensaje = "Error al actualizar el nombre: ${e.message}"
-                                }
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                    ) {
-                        Text("Guardar")
-                    }
-
-                    Button(
-                        onClick = {
-                            nombreEditado = usuario!!.nombre
-                            modoEdicion = false
-                            errorMensaje = ""
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                    ) {
-                        Text("Cancelar")
-                    }
-                }
-            } else {
+            if (cargando) {
+                CircularProgressIndicator()
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Cargando perfil...", fontSize = 14.sp)
+            } else if (errorMensaje.isNotEmpty()) {
+                Text(
+                    text = errorMensaje,
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
                 Button(
-                    onClick = {
-                        modoEdicion = true
-                    },
+                    onClick = { navController.navigate("login") },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Editar Perfil")
+                    Text("Iniciar Sesión")
                 }
-            }
-            Spacer(modifier = Modifier.height(16.dp))
+            } else if (usuario != null) {
+                // Mostrar mensaje de éxito si se actualiza el perfil
+                if (mensajeExito.isNotEmpty()) {
+                    Text(
+                        text = mensajeExito,
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                }
 
-            // Botón para Cerrar Sesión
-            Button(
-                onClick = {
-                    auth.signOut()
-                    navController.navigate("login") {
-                        popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                // Campo Nombre (Editable)
+                OutlinedTextField(
+                    value = nombreEditado,
+                    onValueChange = { nombreEditado = it },
+                    label = { Text("Nombre") },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = modoEdicion,
+                    singleLine = true
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Campo Correo (Solo Lectura)
+                OutlinedTextField(
+                    value = usuario!!.email,
+                    onValueChange = { /* Solo lectura */ },
+                    label = { Text("Correo Electrónico") },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = false,
+                    singleLine = true
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Botones de Edición
+                if (modoEdicion) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        Button(
+                            onClick = {
+                                if (nombreEditado.isBlank()) {
+                                    errorMensaje = "El nombre no puede estar vacío."
+                                    return@Button
+                                }
+
+                                scope.launch {
+                                    try {
+                                        firestore.collection("Usuarios")
+                                            .document(user!!.uid)
+                                            .update("nombre", nombreEditado)
+                                            .await()
+                                        usuario = usuario!!.copy(nombre = nombreEditado)
+                                        mensajeExito = "Nombre actualizado con éxito."
+                                        errorMensaje = ""
+                                        modoEdicion = false
+                                    } catch (e: Exception) {
+                                        errorMensaje = "Error al actualizar el nombre: ${e.message}"
+                                    }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        ) {
+                            Text("Guardar")
+                        }
+
+                        Button(
+                            onClick = {
+                                nombreEditado = usuario!!.nombre
+                                modoEdicion = false
+                                errorMensaje = ""
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                        ) {
+                            Text("Cancelar")
+                        }
                     }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
-            ) {
-                Text("Cerrar Sesión")
-            }
-            Spacer(modifier = Modifier.height(8.dp))
+                } else {
+                    Button(
+                        onClick = {
+                            modoEdicion = true
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Editar Perfil")
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
 
-            // Botón para Eliminar Cuenta (Opcional, solo para usuarios no administradores)
-            if (usuario!!.rol != "admin") {
+                // Botón para Cerrar Sesión
                 Button(
                     onClick = {
-                        mostrarDialogoEliminar = true
+                        auth.signOut()
+                        navController.navigate("login") {
+                            popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                        }
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
                 ) {
-                    Text("Eliminar Cuenta")
+                    Text("Cerrar Sesión")
                 }
-            }
+                Spacer(modifier = Modifier.height(8.dp))
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Botón para Volver
-            Button(
-                onClick = {
-                    navController.popBackStack()
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Volver")
+                // Botón para Eliminar Cuenta (Opcional, solo para usuarios no administradores)
+                if (usuario!!.rol != "admin") {
+                    Button(
+                        onClick = {
+                            mostrarDialogoEliminar = true
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("Eliminar Cuenta")
+                    }
+                }
             }
         }
     }
@@ -271,7 +286,7 @@ fun VentanaPerfil(navController: NavHostController) {
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("Eliminar")
+                    Text("Sí") // Ajustado para que sea más claro
                 }
             },
             dismissButton = {
@@ -279,7 +294,7 @@ fun VentanaPerfil(navController: NavHostController) {
                     onClick = { mostrarDialogoEliminar = false },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
-                    Text("Cancelar")
+                    Text("No") // Ajustado para que sea más claro
                 }
             }
         )
