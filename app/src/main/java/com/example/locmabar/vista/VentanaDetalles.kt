@@ -2,9 +2,15 @@ package com.example.locmabar.vista
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,6 +27,7 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Source
 import com.google.maps.android.compose.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -37,14 +44,19 @@ fun VentanaDetalles(
     val scope = rememberCoroutineScope()
     var lugar by remember { mutableStateOf<Lugar?>(null) }
     var comentarios by remember { mutableStateOf<List<Comentario>>(emptyList()) }
+    var usuariosMap by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var cargando by remember { mutableStateOf(true) }
     var errorMensaje by remember { mutableStateOf("") }
     var mensajeExito by remember { mutableStateOf("") }
+    var debugMensaje by remember { mutableStateOf("") } // Para depuración
 
     // Estados para el formulario de comentarios
     var nuevoComentario by remember { mutableStateOf("") }
-    var nuevaValoracion by remember { mutableStateOf("") }
+    var nuevaValoracion by remember { mutableStateOf(0f) }
     var cargandoComentario by remember { mutableStateOf(false) }
+
+    // Estado para el desplazamiento
+    val scrollState = rememberScrollState()
 
     // Cargar datos del local desde Firestore
     LaunchedEffect(lugarId) {
@@ -78,23 +90,58 @@ fun VentanaDetalles(
     LaunchedEffect(lugarId) {
         scope.launch {
             try {
+                println("Attempting to load comments for lugarId: $lugarId")
                 val querySnapshot = FirebaseFirestore.getInstance()
                     .collection("Comentarios")
                     .whereEqualTo("lugarId", lugarId)
                     .whereEqualTo("estado", "APROBADO")
                     .get()
                     .await()
+
+                println("Query returned ${querySnapshot.size()} documents")
+                querySnapshot.documents.forEach { doc ->
+                    println("Document: ${doc.id} -> ${doc.data}")
+                }
+
                 comentarios = querySnapshot.toObjects(Comentario::class.java)
+                debugMensaje = "Se encontraron ${querySnapshot.size()} comentarios aprobados."
+
+                // Cargar nombres de usuarios para los comentarios
+                val usuarioIds = comentarios.map { it.usuarioId }.distinct()
+                val usuarios = mutableMapOf<String, String>()
+                for (usuarioId in usuarioIds) {
+                    try {
+                        val userDoc = FirebaseFirestore.getInstance()
+                            .collection("Usuarios")
+                            .document(usuarioId)
+                            .get(Source.SERVER)
+                            .await()
+                        val nombre = userDoc.get("nombre") as String?
+                        usuarios[usuarioId] = nombre ?: "Usuario Desconocido"
+                        println("Loaded user $usuarioId: $nombre")
+                    } catch (e: Exception) {
+                        usuarios[usuarioId] = "Usuario Desconocido"
+                        println("Error al cargar nombre de usuario $usuarioId: ${e.message}")
+                    }
+                }
+                usuariosMap = usuarios
             } catch (e: Exception) {
-                errorMensaje = "Error al cargar comentarios: ${e.message}"
+                errorMensaje = if (e.message?.contains("PERMISSION_DENIED") == true) {
+                    "No tienes permiso para ver los comentarios de este lugar."
+                } else {
+                    "Error al cargar comentarios: ${e.message}"
+                }
+                debugMensaje = "Error al cargar comentarios: ${e.message}"
             }
         }
     }
 
+    // Envolver el Column en un Modifier.verticalScroll para habilitar el desplazamiento
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
+            .padding(16.dp)
+            .verticalScroll(scrollState), // Habilitar desplazamiento vertical
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         if (cargando) {
@@ -253,21 +300,32 @@ fun VentanaDetalles(
                 singleLine = false
             )
 
-            OutlinedTextField(
-                value = nuevaValoracion,
-                onValueChange = { nuevaValoracion = it },
-                label = { Text("Valoración (opcional, ej. 4.5/5)") },
+            // Selector de valoración con estrellas
+            Text(
+                text = "Valoración (opcional, toca las estrellas):",
+                fontSize = 16.sp,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 8.dp),
-                colors = TextFieldDefaults.colors(
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    focusedIndicatorColor = MaterialTheme.colorScheme.primary,
-                    unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                ),
-                singleLine = true
-            )
+                horizontalArrangement = Arrangement.Center
+            ) {
+                for (i in 1..5) {
+                    Icon(
+                        imageVector = if (i <= nuevaValoracion) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                        contentDescription = "$i estrellas",
+                        tint = if (i <= nuevaValoracion) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clickable {
+                                nuevaValoracion = i.toFloat()
+                            }
+                    )
+                }
+            }
 
             if (cargandoComentario) {
                 CircularProgressIndicator()
@@ -276,6 +334,12 @@ fun VentanaDetalles(
                     onClick = {
                         if (nuevoComentario.isBlank()) {
                             errorMensaje = "El comentario no puede estar vacío"
+                            return@Button
+                        }
+
+                        // Validar que la valoración esté entre 1 y 5 (si se ingresó)
+                        if (nuevaValoracion > 0 && (nuevaValoracion < 1 || nuevaValoracion > 5)) {
+                            errorMensaje = "La valoración debe estar entre 1 y 5"
                             return@Button
                         }
 
@@ -301,7 +365,7 @@ fun VentanaDetalles(
                                     lugarId = lugarId,
                                     estado = "PENDIENTE",
                                     fechaCreacion = Timestamp.now(),
-                                    valoracion = nuevaValoracion.ifBlank { null }
+                                    valoracion = if (nuevaValoracion > 0) "${nuevaValoracion}/5" else null
                                 )
 
                                 FirebaseFirestore.getInstance()
@@ -312,7 +376,7 @@ fun VentanaDetalles(
 
                                 mensajeExito = "Comentario enviado. Será revisado por un administrador."
                                 nuevoComentario = ""
-                                nuevaValoracion = ""
+                                nuevaValoracion = 0f
                             } catch (e: Exception) {
                                 errorMensaje = "Error al enviar comentario: ${e.message}"
                             } finally {
@@ -338,6 +402,16 @@ fun VentanaDetalles(
                     color = MaterialTheme.colorScheme.primary,
                     fontSize = 16.sp,
                     modifier = Modifier.padding(bottom = 16.dp)
+                )
+            }
+
+            // Mensaje de depuración
+            if (debugMensaje.isNotEmpty()) {
+                Text(
+                    text = debugMensaje,
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.padding(bottom = 8.dp)
                 )
             }
 
@@ -376,7 +450,11 @@ fun VentanaDetalles(
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
                 } else {
-                    LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 300.dp) // Limitar la altura para que no ocupe demasiado espacio
+                    ) {
                         items(comentarios) { comentario ->
                             Card(
                                 modifier = Modifier
@@ -393,7 +471,7 @@ fun VentanaDetalles(
                                     )
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        text = "Usuario: ${comentario.usuarioId}",
+                                        text = "Usuario: ${usuariosMap[comentario.usuarioId] ?: "Usuario Desconocido"}",
                                         fontSize = 14.sp,
                                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                                     )
@@ -435,6 +513,9 @@ fun VentanaDetalles(
                     color = MaterialTheme.colorScheme.onSecondary
                 )
             }
+
+            // Añadir un Spacer al final para asegurar que el contenido sea completamente desplazable
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
