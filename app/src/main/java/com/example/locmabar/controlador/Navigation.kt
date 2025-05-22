@@ -14,7 +14,7 @@ import com.example.locmabar.vista.AdminDatosUsuarios
 import com.example.locmabar.vista.AdminSolicitudes
 import com.example.locmabar.vista.AdminUsuarios
 import com.example.locmabar.vista.AdminComentariosAprobados
-import com.example.locmabar.vista.AdminLugares // Añadida la importación
+import com.example.locmabar.vista.AdminLugares
 import com.example.locmabar.vista.Login
 import com.example.locmabar.vista.Registro
 import com.example.locmabar.vista.SolicitudNuevo
@@ -66,14 +66,8 @@ fun Navigation(navController: NavHostController, modifier: Modifier = Modifier) 
                 comunidadesJson = decodedComunidadesJson
             )
         }
-        composable(
-            route = "adminSolicitudes?tab={tab}",
-            arguments = listOf(
-                navArgument("tab") { type = NavType.IntType; defaultValue = 0 }
-            )
-        ) { backStackEntry ->
-            val tab = backStackEntry.arguments?.getInt("tab") ?: 0
-            AdminSolicitudes(navController = navController, initialTab = tab)
+        composable("adminSolicitudes") { // Eliminado el argumento tab
+            AdminSolicitudes(navController = navController) // Eliminado initialTab
         }
         composable("adminComentarios") { AdminComentarios(navController = navController) }
         composable(
@@ -105,6 +99,6 @@ fun Navigation(navController: NavHostController, modifier: Modifier = Modifier) 
             AdminDatosUsuarios(navController = navController, usuarioId = usuarioId)
         }
         composable("adminComentariosAprobados") { AdminComentariosAprobados(navController = navController) }
-        composable("adminLugares") { AdminLugares(navController = navController) } // Nueva ruta
+        composable("adminLugares") { AdminLugares(navController = navController) }
     }
 }

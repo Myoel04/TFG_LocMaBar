@@ -130,7 +130,7 @@ fun VentHomeAdmin(navController: NavHostController) {
                 .requiredHeight(62.dp)
                 .clip(RoundedCornerShape(100.dp))
                 .background(Color(0xFF4CAF50)) // Ajusta el color según tu tema
-                .clickable { navController.navigate("adminSolicitudes?tab=3") }
+                .clickable { navController.navigate("adminSolicitudes") } // Eliminado ?tab=3
         ) {
             Text(
                 text = "Solicitudes",
@@ -276,7 +276,7 @@ fun VentHomeAdmin(navController: NavHostController) {
                     modifier = Modifier
                         .requiredSize(48.dp)
                         .clickable {
-                            navController.navigate("adminSolicitudes?tab=3")
+                            navController.navigate("adminSolicitudes") // Eliminado ?tab=3
                         }
                 )
             }

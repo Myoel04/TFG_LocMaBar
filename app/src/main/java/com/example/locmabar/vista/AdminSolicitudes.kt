@@ -1,15 +1,13 @@
 package com.example.locmabar.vista
 
-import android.Manifest
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,55 +15,31 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
-import com.example.locmabar.modelo.Lugar
-import com.example.locmabar.modelo.LugarRepository
 import com.example.locmabar.modelo.SolicitudRestaurante
-import com.example.locmabar.modelo.Usuario
-import com.google.accompanist.permissions.ExperimentalPermissionsApi
-import com.google.accompanist.permissions.isGranted
-import com.google.accompanist.permissions.rememberPermissionState
-import com.google.android.gms.maps.model.CameraPosition
-import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.maps.android.compose.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
-@OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AdminSolicitudes(navController: NavHostController, initialTab: Int = 0) {
+fun AdminSolicitudes(navController: NavHostController) {
     val auth = FirebaseAuth.getInstance()
     val user = auth.currentUser
-    var selectedTab by remember { mutableStateOf(initialTab) }
     var isAdmin by remember { mutableStateOf(false) }
     var cargandoAdmin by remember { mutableStateOf(true) }
     var cargando by remember { mutableStateOf(true) }
     var errorMensaje by remember { mutableStateOf("") }
 
-    // Estado para permisos de ubicación
-    val locationPermissionState = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION)
-    val locationLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted -> if (isGranted) println("Permiso de ubicación concedido") }
-
     // Estados para datos
-    var usuarios by remember { mutableStateOf(listOf<Usuario>()) }
-    var locales by remember { mutableStateOf(listOf<Lugar>()) }
     var solicitudes by remember { mutableStateOf(listOf<SolicitudRestaurante>()) }
-    var filtroLocal by remember { mutableStateOf("") }
-    var lugarSeleccionado by remember { mutableStateOf<Lugar?>(null) }
-    var mostrarDialogoEliminar by remember { mutableStateOf(false) }
 
     val contexto = LocalContext.current
-
-    // Configuración del mapa
-    val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(LatLng(40.4168, -3.7038), 10f) // Centro en Madrid por defecto
-    }
 
     // Coroutine scope para manejar la carga de datos
     val coroutineScope = rememberCoroutineScope()
@@ -91,33 +65,6 @@ fun AdminSolicitudes(navController: NavHostController, initialTab: Int = 0) {
                     errorMensaje = "Acceso denegado. Solo para administradores."
                     cargandoAdmin = false
                     return@launch
-                }
-
-                // Cargar usuarios
-                val usuariosSnapshot = FirebaseFirestore.getInstance()
-                    .collection("Usuarios")
-                    .get()
-                    .await()
-                usuarios = usuariosSnapshot.documents.mapNotNull { doc ->
-                    doc.toObject(Usuario::class.java)?.copy(uid = doc.id)
-                }
-
-                // Cargar locales
-                val lugarRepository = LugarRepository()
-                lugarRepository.obtenerTodosLugares { lugares, error ->
-                    if (error != null) {
-                        errorMensaje = error
-                    } else {
-                        locales = lugares.filter { it.isValid() }
-                        if (lugares.isNotEmpty()) {
-                            val primerLugar = lugares.firstOrNull { it.isValid() }
-                            if (primerLugar != null && primerLugar.latitud != null && primerLugar.longitud != null) {
-                                cameraPositionState.position = CameraPosition.fromLatLngZoom(
-                                    LatLng(primerLugar.latitudDouble!!, primerLugar.longitudDouble!!), 12f
-                                )
-                            }
-                        }
-                    }
                 }
 
                 // Cargar solicitudes
@@ -152,315 +99,204 @@ fun AdminSolicitudes(navController: NavHostController, initialTab: Int = 0) {
         }
     }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .background(Color.White)
     ) {
+        // Encabezado (igual que en VentHomeAdmin)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .requiredHeight(90.dp)
+                .background(Color.DarkGray)
+        )
+
+        // Texto "LOCMABAR" en el encabezado
+        Text(
+            text = "LOCMABAR",
+            color = Color.White,
+            textAlign = TextAlign.Center,
+            lineHeight = 1.43.em,
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .offset(y = 33.dp)
+                .wrapContentHeight(align = Alignment.CenterVertically)
+        )
+
         if (cargandoAdmin) {
-            CircularProgressIndicator()
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("Verificando permisos...", fontSize = 14.sp)
-            return@Column
+            CircularProgressIndicator(
+                modifier = Modifier.align(Alignment.Center)
+            )
+            Text(
+                text = "Verificando permisos...",
+                fontSize = 14.sp,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .offset(y = 40.dp)
+            )
+            return@Box
         }
 
         if (user == null || !isAdmin) {
             Text(
                 text = "Acceso denegado. Solo para administradores.",
                 color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(bottom = 16.dp)
+                fontSize = 16.sp,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(16.dp)
             )
             Button(
                 onClick = { navController.navigate("login") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .offset(y = 40.dp)
+                    .fillMaxWidth(0.8f)
             ) {
                 Text("Iniciar Sesión")
             }
-            return@Column
+            return@Box
         }
 
-        Text(
-            text = "Panel de Administración",
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-
-        if (cargando) {
-            CircularProgressIndicator()
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("Cargando datos...", fontSize = 14.sp)
-        } else {
-            if (errorMensaje.isNotEmpty()) {
-                Text(
-                    text = errorMensaje,
-                    color = MaterialTheme.colorScheme.error,
-                    fontSize = 16.sp,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-            }
-
-            TabRow(selectedTabIndex = selectedTab) {
-                Tab(
-                    selected = selectedTab == 0,
-                    onClick = { selectedTab = 0 },
-                    text = { Text("Usuarios") }
-                )
-                Tab(
-                    selected = selectedTab == 1,
-                    onClick = { selectedTab = 1 },
-                    text = { Text("Locales") }
-                )
-                Tab(
-                    selected = selectedTab == 2,
-                    onClick = { selectedTab = 2 },
-                    text = { Text("Comentarios") }
-                )
-                Tab(
-                    selected = selectedTab == 3,
-                    onClick = { selectedTab = 3 },
-                    text = { Text("Solicitudes") }
-                )
-            }
-
-            when (selectedTab) {
-                0 -> {
-                    // Usuarios
-                    Button(
-                        onClick = { navController.navigate("adminUsuarios") },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Gestionar Usuarios")
-                    }
-                }
-                1 -> {
-                    // Locales
-                    Box(
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        Column(
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            if (!locationPermissionState.status.isGranted) {
-                                Button(
-                                    onClick = { locationLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION) },
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text("Solicitar permiso de ubicación")
-                                }
-                            }
-                            OutlinedTextField(
-                                value = filtroLocal,
-                                onValueChange = { filtroLocal = it },
-                                label = { Text("Filtrar por nombre") },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            // Mapa de Google
-                            GoogleMap(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(300.dp),
-                                cameraPositionState = cameraPositionState,
-                                properties = MapProperties(isMyLocationEnabled = locationPermissionState.status.isGranted),
-                                uiSettings = MapUiSettings(
-                                    zoomControlsEnabled = true,
-                                    myLocationButtonEnabled = true,
-                                    scrollGesturesEnabled = true,
-                                    zoomGesturesEnabled = true,
-                                    rotationGesturesEnabled = true
-                                )
-                            ) {
-                                locales.filter { it.nombre?.contains(filtroLocal, ignoreCase = true) == true }.forEach { lugar ->
-                                    if (lugar.latitud != null && lugar.longitud != null) {
-                                        Marker(
-                                            state = MarkerState(position = LatLng(lugar.latitudDouble!!, lugar.longitudDouble!!)),
-                                            title = lugar.nombre,
-                                            snippet = lugar.direccion,
-                                            onClick = {
-                                                val route = "detallesBar/${lugar.id}?latitudUsuario=0.0&longitudUsuario=0.0"
-                                                navController.navigate(route)
-                                                true
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                                items(locales.filter { it.nombre?.contains(filtroLocal, ignoreCase = true) == true }) { lugar ->
-                                    Card(
-                                        modifier = Modifier
-                                            .padding(8.dp)
-                                            .fillMaxWidth()
-                                    ) {
-                                        Column(modifier = Modifier.padding(16.dp)) {
-                                            Text(
-                                                text = lugar.nombre ?: "Sin nombre",
-                                                fontSize = 16.sp
-                                            )
-                                            Text(
-                                                text = "Dirección: ${lugar.direccion ?: "Sin dirección"}",
-                                                fontSize = 14.sp
-                                            )
-                                            Spacer(modifier = Modifier.height(8.dp))
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween
-                                            ) {
-                                                Button(
-                                                    onClick = {
-                                                        val route = "detallesBar/${lugar.id}?latitudUsuario=0.0&longitudUsuario=0.0"
-                                                        navController.navigate(route)
-                                                    },
-                                                    modifier = Modifier.weight(1f).padding(end = 8.dp)
-                                                ) {
-                                                    Text("Ver Detalles")
-                                                }
-                                                Button(
-                                                    onClick = {
-                                                        lugarSeleccionado = lugar
-                                                        mostrarDialogoEliminar = true
-                                                    },
-                                                    modifier = Modifier.weight(1f),
-                                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                                                ) {
-                                                    Text("Eliminar")
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // Botón flotante para navegar a AdminLugares.kt
-                        FloatingActionButton(
-                            onClick = { navController.navigate("adminLugares") },
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(16.dp),
-                            containerColor = MaterialTheme.colorScheme.primary
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "Gestionar Lugares",
-                                tint = Color.White
-                            )
-                        }
-                    }
-                }
-                2 -> {
-                    // Comentarios
-                    Button(
-                        onClick = { navController.navigate("adminComentarios") },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Gestionar Comentarios")
-                    }
-                }
-                3 -> {
-                    // Solicitudes
-                    if (solicitudes.isEmpty()) {
-                        Text(
-                            text = "No hay solicitudes pendientes.",
-                            fontSize = 16.sp,
-                            modifier = Modifier.padding(bottom = 16.dp)
-                        )
-                    } else {
-                        LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                            items(solicitudes) { solicitud ->
-                                Card(
-                                    modifier = Modifier
-                                        .padding(8.dp)
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            navController.navigate("adminDatosSolicitudes/${solicitud.id}")
-                                        },
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                                ) {
-                                    Column(modifier = Modifier.padding(16.dp)) {
-                                        Text(
-                                            text = solicitud.nombre ?: "Sin nombre",
-                                            fontSize = 16.sp,
-                                            fontWeight = FontWeight.Medium
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = "Dirección: ${solicitud.direccion ?: "Sin dirección"}",
-                                            fontSize = 14.sp,
-                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = "${solicitud.municipio ?: "Sin municipio"}, ${solicitud.provincia ?: "Sin provincia"}",
-                                            fontSize = 14.sp,
-                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(
-            onClick = { navController.popBackStack() },
-            modifier = Modifier.fillMaxWidth()
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("Volver")
-        }
-    }
+            Spacer(modifier = Modifier.height(90.dp)) // Espacio para el encabezado
 
-    // Diálogo para confirmar eliminación
-    if (mostrarDialogoEliminar) {
-        AlertDialog(
-            onDismissRequest = { mostrarDialogoEliminar = false },
-            title = { Text("Eliminar Lugar") },
-            text = { Text("¿Estás seguro de que deseas eliminar este lugar? Esta acción no se puede deshacer.") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        coroutineScope.launch {
-                            try {
-                                FirebaseFirestore.getInstance()
-                                    .collection("Locales")
-                                    .document(lugarSeleccionado!!.id!!)
-                                    .delete()
-                                    .await()
-                                locales = locales.filter { it.id != lugarSeleccionado!!.id }
-                                Toast.makeText(
-                                    contexto,
-                                    "Lugar eliminado con éxito.",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                                lugarSeleccionado = null
-                            } catch (e: Exception) {
-                                errorMensaje = "Error al eliminar el lugar: ${e.message}"
+            if (cargando) {
+                CircularProgressIndicator()
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Cargando solicitudes...", fontSize = 14.sp)
+            } else {
+                if (errorMensaje.isNotEmpty()) {
+                    Text(
+                        text = errorMensaje,
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 16.sp,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                }
+
+                if (solicitudes.isEmpty()) {
+                    Text(
+                        text = "No hay solicitudes pendientes.",
+                        fontSize = 16.sp,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f) // Para que ocupe el espacio disponible
+                    ) {
+                        items(solicitudes) { solicitud ->
+                            Card(
+                                modifier = Modifier
+                                    .padding(8.dp)
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        navController.navigate("adminDatosSolicitudes/${solicitud.id}")
+                                    },
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text(
+                                        text = solicitud.nombre ?: "Sin nombre",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Dirección: ${solicitud.direccion ?: "Sin dirección"}",
+                                        fontSize = 14.sp,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "${solicitud.municipio ?: "Sin municipio"}, ${solicitud.provincia ?: "Sin provincia"}",
+                                        fontSize = 14.sp,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                    )
+                                }
                             }
                         }
-                        mostrarDialogoEliminar = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text("Eliminar")
-                }
-            },
-            dismissButton = {
-                Button(
-                    onClick = { mostrarDialogoEliminar = false },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                ) {
-                    Text("Cancelar")
+                    }
                 }
             }
-        )
+        }
+
+        // Barra de navegación inferior (igual que en VentHomeAdmin)
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .requiredHeight(63.dp)
+                .background(Color.LightGray)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Icono "Home" (Volver a ventHomeAdmin)
+                Icon(
+                    imageVector = Icons.Default.Home,
+                    contentDescription = "Home",
+                    tint = Color.Black,
+                    modifier = Modifier
+                        .requiredSize(48.dp)
+                        .clickable {
+                            navController.navigate("ventHomeAdmin") {
+                                popUpTo(navController.graph.startDestinationId) {
+                                    inclusive = false
+                                }
+                            }
+                        }
+                )
+
+                // Icono "Image Avatar" (AdminUsuarios)
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = "Usuarios",
+                    tint = Color.Black,
+                    modifier = Modifier
+                        .requiredSize(48.dp)
+                        .clickable {
+                            navController.navigate("adminUsuarios")
+                        }
+                )
+
+                // Icono "Message Square" (AdminComentarios)
+                Icon(
+                    imageVector = Icons.Default.Message,
+                    contentDescription = "Comentarios",
+                    tint = Color.Black,
+                    modifier = Modifier
+                        .requiredSize(48.dp)
+                        .clickable {
+                            navController.navigate("adminComentarios")
+                        }
+                )
+
+                // Icono "Pencil 01" (AdminSolicitudes)
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Solicitudes",
+                    tint = Color.Black,
+                    modifier = Modifier
+                        .requiredSize(48.dp)
+                        .clickable {
+                            navController.navigate("adminSolicitudes")
+                        }
+                )
+            }
+        }
     }
 }
