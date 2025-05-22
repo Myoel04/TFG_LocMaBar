@@ -11,7 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.rememberNavController
-import com.example.locmabar.navegacion.Navigation
+import com.example.locmabar.controlador.Navigation
 import com.example.locmabar.ui.theme.LocMaBarTheme
 
 class MainActivity : ComponentActivity() {

@@ -1,16 +1,21 @@
 package com.example.locmabar.vista
 
 import android.Manifest
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -32,10 +37,10 @@ import kotlinx.coroutines.tasks.await
 
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun AdminSolicitudes(navController: NavHostController) {
+fun AdminSolicitudes(navController: NavHostController, initialTab: Int = 0) {
     val auth = FirebaseAuth.getInstance()
     val user = auth.currentUser
-    var selectedTab by remember { mutableStateOf(0) }
+    var selectedTab by remember { mutableStateOf(initialTab) }
     var isAdmin by remember { mutableStateOf(false) }
     var cargandoAdmin by remember { mutableStateOf(true) }
     var cargando by remember { mutableStateOf(true) }
@@ -52,6 +57,10 @@ fun AdminSolicitudes(navController: NavHostController) {
     var locales by remember { mutableStateOf(listOf<Lugar>()) }
     var solicitudes by remember { mutableStateOf(listOf<SolicitudRestaurante>()) }
     var filtroLocal by remember { mutableStateOf("") }
+    var lugarSeleccionado by remember { mutableStateOf<Lugar?>(null) }
+    var mostrarDialogoEliminar by remember { mutableStateOf(false) }
+
+    val contexto = LocalContext.current
 
     // Configuración del mapa
     val cameraPositionState = rememberCameraPositionState {
@@ -119,7 +128,7 @@ fun AdminSolicitudes(navController: NavHostController) {
                     .await()
                 solicitudes = solicitudesSnapshot.documents.mapNotNull { document ->
                     try {
-                        val solicitud = document.toObject(SolicitudRestaurante::class.java)
+                        val solicitud = document.toObject(SolicitudRestaurante::class.java)?.copy(id = document.id)
                         if (solicitud != null && solicitud.isValid()) {
                             println("Solicitud cargada: ID=${solicitud.id}, Nombre=${solicitud.nombre}")
                             solicitud
@@ -227,77 +236,121 @@ fun AdminSolicitudes(navController: NavHostController) {
                 }
                 1 -> {
                     // Locales
-                    if (!locationPermissionState.status.isGranted) {
-                        Button(
-                            onClick = { locationLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION) },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text("Solicitar permiso de ubicación")
-                        }
-                    }
-                    OutlinedTextField(
-                        value = filtroLocal,
-                        onValueChange = { filtroLocal = it },
-                        label = { Text("Filtrar por nombre") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Mapa de Google
-                    GoogleMap(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(300.dp),
-                        cameraPositionState = cameraPositionState,
-                        properties = MapProperties(isMyLocationEnabled = locationPermissionState.status.isGranted),
-                        uiSettings = MapUiSettings(
-                            zoomControlsEnabled = true,
-                            myLocationButtonEnabled = true,
-                            scrollGesturesEnabled = true,
-                            zoomGesturesEnabled = true,
-                            rotationGesturesEnabled = true
-                        )
+                    Box(
+                        modifier = Modifier.fillMaxSize()
                     ) {
-                        locales.filter { it.nombre?.contains(filtroLocal, ignoreCase = true) == true }.forEach { lugar ->
-                            if (lugar.latitud != null && lugar.longitud != null) {
-                                Marker(
-                                    state = MarkerState(position = LatLng(lugar.latitudDouble!!, lugar.longitudDouble!!)),
-                                    title = lugar.nombre,
-                                    snippet = lugar.direccion,
-                                    onClick = {
-                                        val route = "detallesBar/${lugar.id}?latitudUsuario=0.0&longitudUsuario=0.0"
-                                        navController.navigate(route)
-                                        true
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                        items(locales.filter { it.nombre?.contains(filtroLocal, ignoreCase = true) == true }) { lugar ->
-                            Card(
-                                modifier = Modifier
-                                    .padding(8.dp)
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        val route = "detallesBar/${lugar.id}?latitudUsuario=0.0&longitudUsuario=0.0"
-                                        navController.navigate(route)
-                                    }
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Text(
-                                        text = lugar.nombre ?: "Sin nombre",
-                                        fontSize = 16.sp
-                                    )
-                                    Text(
-                                        text = "Dirección: ${lugar.direccion ?: "Sin dirección"}",
-                                        fontSize = 14.sp
-                                    )
+                        Column(
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            if (!locationPermissionState.status.isGranted) {
+                                Button(
+                                    onClick = { locationLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION) },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text("Solicitar permiso de ubicación")
                                 }
                             }
+                            OutlinedTextField(
+                                value = filtroLocal,
+                                onValueChange = { filtroLocal = it },
+                                label = { Text("Filtrar por nombre") },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Mapa de Google
+                            GoogleMap(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(300.dp),
+                                cameraPositionState = cameraPositionState,
+                                properties = MapProperties(isMyLocationEnabled = locationPermissionState.status.isGranted),
+                                uiSettings = MapUiSettings(
+                                    zoomControlsEnabled = true,
+                                    myLocationButtonEnabled = true,
+                                    scrollGesturesEnabled = true,
+                                    zoomGesturesEnabled = true,
+                                    rotationGesturesEnabled = true
+                                )
+                            ) {
+                                locales.filter { it.nombre?.contains(filtroLocal, ignoreCase = true) == true }.forEach { lugar ->
+                                    if (lugar.latitud != null && lugar.longitud != null) {
+                                        Marker(
+                                            state = MarkerState(position = LatLng(lugar.latitudDouble!!, lugar.longitudDouble!!)),
+                                            title = lugar.nombre,
+                                            snippet = lugar.direccion,
+                                            onClick = {
+                                                val route = "detallesBar/${lugar.id}?latitudUsuario=0.0&longitudUsuario=0.0"
+                                                navController.navigate(route)
+                                                true
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                                items(locales.filter { it.nombre?.contains(filtroLocal, ignoreCase = true) == true }) { lugar ->
+                                    Card(
+                                        modifier = Modifier
+                                            .padding(8.dp)
+                                            .fillMaxWidth()
+                                    ) {
+                                        Column(modifier = Modifier.padding(16.dp)) {
+                                            Text(
+                                                text = lugar.nombre ?: "Sin nombre",
+                                                fontSize = 16.sp
+                                            )
+                                            Text(
+                                                text = "Dirección: ${lugar.direccion ?: "Sin dirección"}",
+                                                fontSize = 14.sp
+                                            )
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                Button(
+                                                    onClick = {
+                                                        val route = "detallesBar/${lugar.id}?latitudUsuario=0.0&longitudUsuario=0.0"
+                                                        navController.navigate(route)
+                                                    },
+                                                    modifier = Modifier.weight(1f).padding(end = 8.dp)
+                                                ) {
+                                                    Text("Ver Detalles")
+                                                }
+                                                Button(
+                                                    onClick = {
+                                                        lugarSeleccionado = lugar
+                                                        mostrarDialogoEliminar = true
+                                                    },
+                                                    modifier = Modifier.weight(1f),
+                                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                                                ) {
+                                                    Text("Eliminar")
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Botón flotante para navegar a AdminLugares.kt
+                        FloatingActionButton(
+                            onClick = { navController.navigate("adminLugares") },
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(16.dp),
+                            containerColor = MaterialTheme.colorScheme.primary
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Gestionar Lugares",
+                                tint = Color.White
+                            )
                         }
                     }
                 }
@@ -364,5 +417,50 @@ fun AdminSolicitudes(navController: NavHostController) {
         ) {
             Text("Volver")
         }
+    }
+
+    // Diálogo para confirmar eliminación
+    if (mostrarDialogoEliminar) {
+        AlertDialog(
+            onDismissRequest = { mostrarDialogoEliminar = false },
+            title = { Text("Eliminar Lugar") },
+            text = { Text("¿Estás seguro de que deseas eliminar este lugar? Esta acción no se puede deshacer.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        coroutineScope.launch {
+                            try {
+                                FirebaseFirestore.getInstance()
+                                    .collection("Locales")
+                                    .document(lugarSeleccionado!!.id!!)
+                                    .delete()
+                                    .await()
+                                locales = locales.filter { it.id != lugarSeleccionado!!.id }
+                                Toast.makeText(
+                                    contexto,
+                                    "Lugar eliminado con éxito.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                lugarSeleccionado = null
+                            } catch (e: Exception) {
+                                errorMensaje = "Error al eliminar el lugar: ${e.message}"
+                            }
+                        }
+                        mostrarDialogoEliminar = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Eliminar")
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = { mostrarDialogoEliminar = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
 }

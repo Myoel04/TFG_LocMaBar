@@ -1,4 +1,4 @@
-package com.example.locmabar.navegacion
+package com.example.locmabar.controlador
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -13,13 +13,15 @@ import com.example.locmabar.vista.AdminDatosSolicitudes
 import com.example.locmabar.vista.AdminDatosUsuarios
 import com.example.locmabar.vista.AdminSolicitudes
 import com.example.locmabar.vista.AdminUsuarios
+import com.example.locmabar.vista.AdminComentariosAprobados
+import com.example.locmabar.vista.AdminLugares // Añadida la importación
 import com.example.locmabar.vista.Login
 import com.example.locmabar.vista.Registro
 import com.example.locmabar.vista.SolicitudNuevo
 import com.example.locmabar.vista.VentHomeAdmin
 import com.example.locmabar.vista.Ventana2
 import com.example.locmabar.vista.VentanaDetalles
-import com.example.locmabar.vista.VentanaPerfil // Añadir import
+import com.example.locmabar.vista.VentanaPerfil
 import java.net.URLDecoder
 
 @Composable
@@ -28,7 +30,7 @@ fun Navigation(navController: NavHostController, modifier: Modifier = Modifier) 
         composable("login") { Login(navController = navController) }
         composable("ventana2") { Ventana2(navController = navController) }
         composable("ventHomeAdmin") { VentHomeAdmin(navController = navController) }
-        composable("ventanaPerfil") { VentanaPerfil(navController = navController) } // Añadir ruta
+        composable("ventanaPerfil") { VentanaPerfil(navController = navController) }
         composable("registro") { Registro(navController = navController) }
         composable(
             route = "detallesBar/{lugarId}?latitudUsuario={latitudUsuario}&longitudUsuario={longitudUsuario}",
@@ -64,7 +66,15 @@ fun Navigation(navController: NavHostController, modifier: Modifier = Modifier) 
                 comunidadesJson = decodedComunidadesJson
             )
         }
-        composable("adminSolicitudes") { AdminSolicitudes(navController = navController) }
+        composable(
+            route = "adminSolicitudes?tab={tab}",
+            arguments = listOf(
+                navArgument("tab") { type = NavType.IntType; defaultValue = 0 }
+            )
+        ) { backStackEntry ->
+            val tab = backStackEntry.arguments?.getInt("tab") ?: 0
+            AdminSolicitudes(navController = navController, initialTab = tab)
+        }
         composable("adminComentarios") { AdminComentarios(navController = navController) }
         composable(
             route = "adminDatosComentarios/{comentarioId}",
@@ -94,5 +104,7 @@ fun Navigation(navController: NavHostController, modifier: Modifier = Modifier) 
             val usuarioId = backStackEntry.arguments?.getString("usuarioId") ?: ""
             AdminDatosUsuarios(navController = navController, usuarioId = usuarioId)
         }
+        composable("adminComentariosAprobados") { AdminComentariosAprobados(navController = navController) }
+        composable("adminLugares") { AdminLugares(navController = navController) } // Nueva ruta
     }
 }
