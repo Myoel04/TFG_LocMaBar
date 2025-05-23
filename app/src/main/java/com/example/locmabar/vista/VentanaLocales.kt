@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -69,11 +70,6 @@ fun Ventana2(navController: NavHostController) {
 
     // Lista de lugares
     var lugares by remember { mutableStateOf(listOf<Lugar>()) }
-
-    // Configuración del mapa
-    val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(LatLng(40.4168, -3.7038), 10f)
-    }
 
     // Permiso de ubicación
     val estadoPermisoUbicacion = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -178,13 +174,6 @@ fun Ventana2(navController: NavHostController) {
                                 if (lugaresFiltrados.isEmpty()) {
                                     errorMensaje = "No se encontraron lugares cercanos (menos de 100 km)."
                                     falloUbicacion = true
-                                } else {
-                                    val primerLugar = lugaresFiltrados.firstOrNull()
-                                    if (primerLugar != null && primerLugar.latitudDouble != null && primerLugar.longitudDouble != null) {
-                                        cameraPositionState.position = CameraPosition.fromLatLngZoom(
-                                            LatLng(primerLugar.latitudDouble!!, primerLugar.longitudDouble!!), 12f
-                                        )
-                                    }
                                 }
                             }
                         }
@@ -304,18 +293,29 @@ fun Ventana2(navController: NavHostController) {
                     }
                 }
 
-                if (latitudUsuario == null || longitudUsuario == null || falloUbicacion || lugares.isEmpty()) {
+                // Desplegables estáticos en una fila con botón de búsqueda
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     // Selector de comunidad autónoma
                     ExposedDropdownMenuBox(
                         expanded = expandirComunidad,
-                        onExpandedChange = { expandirComunidad = !expandirComunidad }
+                        onExpandedChange = { expandirComunidad = !expandirComunidad },
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 8.dp)
                     ) {
                         TextField(
                             value = comunidadSeleccionada,
                             onValueChange = {},
                             label = { Text("Comunidad Autónoma") },
                             readOnly = true,
-                            modifier = Modifier.menuAnchor().fillMaxWidth()
+                            modifier = Modifier
+                                .menuAnchor()
+                                .fillMaxWidth()
                         )
                         ExposedDropdownMenu(
                             expanded = expandirComunidad,
@@ -332,19 +332,23 @@ fun Ventana2(navController: NavHostController) {
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
 
                     // Selector de provincia
                     ExposedDropdownMenuBox(
                         expanded = expandirProvincia,
-                        onExpandedChange = { expandirProvincia = !expandirProvincia }
+                        onExpandedChange = { expandirProvincia = !expandirProvincia },
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 8.dp)
                     ) {
                         TextField(
                             value = provinciaSeleccionada,
                             onValueChange = {},
                             label = { Text("Provincia") },
                             readOnly = true,
-                            modifier = Modifier.menuAnchor().fillMaxWidth(),
+                            modifier = Modifier
+                                .menuAnchor()
+                                .fillMaxWidth(),
                             enabled = provincias.isNotEmpty()
                         )
                         ExposedDropdownMenu(
@@ -362,19 +366,23 @@ fun Ventana2(navController: NavHostController) {
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
 
                     // Selector de municipio
                     ExposedDropdownMenuBox(
                         expanded = expandirMunicipio,
-                        onExpandedChange = { expandirMunicipio = !expandirMunicipio }
+                        onExpandedChange = { expandirMunicipio = !expandirMunicipio },
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 8.dp)
                     ) {
                         TextField(
                             value = municipioSeleccionado,
                             onValueChange = {},
                             label = { Text("Municipio") },
                             readOnly = true,
-                            modifier = Modifier.menuAnchor().fillMaxWidth(),
+                            modifier = Modifier
+                                .menuAnchor()
+                                .fillMaxWidth(),
                             enabled = municipios.isNotEmpty()
                         )
                         ExposedDropdownMenu(
@@ -392,9 +400,9 @@ fun Ventana2(navController: NavHostController) {
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
 
-                    Button(
+                    // Botón de búsqueda con icono de lupa
+                    IconButton(
                         onClick = {
                             if (comunidadSeleccionada.isNotEmpty() && provinciaSeleccionada.isNotEmpty() && municipioSeleccionado.isNotEmpty()) {
                                 cargando = true
@@ -410,55 +418,32 @@ fun Ventana2(navController: NavHostController) {
                                         }
                                         if (resultado.isEmpty()) {
                                             errorMensaje = "No se encontraron lugares en $municipioSeleccionado, $provinciaSeleccionada."
-                                        } else {
-                                            val primerLugar = resultado.firstOrNull { it.isValid() }
-                                            if (primerLugar != null && primerLugar.latitudDouble != null && primerLugar.longitudDouble != null) {
-                                                cameraPositionState.position = CameraPosition.fromLatLngZoom(
-                                                    LatLng(primerLugar.latitudDouble!!, primerLugar.longitudDouble!!), 12f
-                                                )
-                                            }
                                         }
                                     }
                                 }
                             }
                         },
-                        enabled = comunidadSeleccionada.isNotEmpty() && provinciaSeleccionada.isNotEmpty() && municipioSeleccionado.isNotEmpty()
+                        enabled = comunidadSeleccionada.isNotEmpty() && provinciaSeleccionada.isNotEmpty() && municipioSeleccionado.isNotEmpty(),
+                        modifier = Modifier.size(48.dp)
                     ) {
-                        Text("Buscar")
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Buscar",
+                            tint = if (comunidadSeleccionada.isNotEmpty() && provinciaSeleccionada.isNotEmpty() && municipioSeleccionado.isNotEmpty()) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                            }
+                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
                 if (lugares.isNotEmpty()) {
-                    GoogleMap(
+                    LazyColumn(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(300.dp),
-                        cameraPositionState = cameraPositionState,
-                        properties = MapProperties(isMyLocationEnabled = latitudUsuario != null && longitudUsuario != null),
-                        uiSettings = MapUiSettings(
-                            zoomControlsEnabled = true,
-                            myLocationButtonEnabled = true,
-                            scrollGesturesEnabled = true,
-                            zoomGesturesEnabled = true,
-                            rotationGesturesEnabled = true
-                        )
+                            .weight(1f) // Para que ocupe el espacio disponible
                     ) {
-                        lugares.forEach { lugar ->
-                            if (lugar.latitudDouble != null && lugar.longitudDouble != null) {
-                                Marker(
-                                    state = MarkerState(position = LatLng(lugar.latitudDouble!!, lugar.longitudDouble!!)),
-                                    title = lugar.nombre,
-                                    snippet = lugar.direccion
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    LazyColumn(modifier = Modifier.fillMaxWidth()) {
                         items(lugares) { lugar ->
                             Card(
                                 modifier = Modifier
@@ -496,7 +481,7 @@ fun Ventana2(navController: NavHostController) {
                             }
                         }
                     }
-                } else if (!cargando && (latitudUsuario != null || (comunidadSeleccionada.isNotEmpty() && provinciaSeleccionada.isNotEmpty() && municipioSeleccionado.isNotEmpty()))) {
+                } else if (!cargando) {
                     Text(errorMensaje.ifEmpty { "No se encontraron lugares." }, fontSize = 14.sp)
                 }
             }
