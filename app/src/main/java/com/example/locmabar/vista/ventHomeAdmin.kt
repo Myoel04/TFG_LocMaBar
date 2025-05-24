@@ -11,7 +11,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -22,6 +21,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VentHomeAdmin(navController: NavHostController) {
     val auth = FirebaseAuth.getInstance()
@@ -60,224 +60,202 @@ fun VentHomeAdmin(navController: NavHostController) {
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White)
-    ) {
-        // Rectángulo de fondo del encabezado (Rectangle15) - Reemplazado por Box
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .requiredHeight(90.dp)
-                .background(Color.DarkGray) // Color temporal hasta que añadas la imagen
-        )
-
-        // Texto "LOCMABAR" en el encabezado
-        Text(
-            text = "LOCMABAR",
-            color = Color.White,
-            textAlign = TextAlign.Center,
-            lineHeight = 1.43.em,
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .offset(y = 33.dp)
-                .wrapContentHeight(align = Alignment.CenterVertically)
-        )
-
-        if (cargandoAdmin) {
-            CircularProgressIndicator(
-                modifier = Modifier.align(Alignment.Center)
-            )
-            Text(
-                text = "Verificando permisos...",
-                fontSize = 14.sp,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .offset(y = 40.dp)
-            )
-            return@Box
-        }
-
-        if (user == null || !isAdmin) {
-            Text(
-                text = "Acceso denegado. Solo para administradores.",
-                color = MaterialTheme.colorScheme.error,
-                fontSize = 16.sp,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(16.dp)
-            )
-            Button(
-                onClick = { navController.navigate("login") },
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .offset(y = 40.dp)
-                    .fillMaxWidth(0.8f)
+    Scaffold(
+        bottomBar = {
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
             ) {
-                Text("Iniciar Sesión")
-            }
-            return@Box
-        }
-
-        // Botón "Solicitudes"
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .offset(y = 137.dp)
-                .requiredWidth(351.dp)
-                .requiredHeight(62.dp)
-                .clip(RoundedCornerShape(100.dp))
-                .background(Color(0xFF4CAF50)) // Ajusta el color según tu tema
-                .clickable { navController.navigate("adminSolicitudes") } // Eliminado ?tab=3
-        ) {
-            Text(
-                text = "Solicitudes",
-                color = Color.White,
-                textAlign = TextAlign.Center,
-                lineHeight = 1.43.em,
-                style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .wrapContentHeight(align = Alignment.CenterVertically)
-            )
-        }
-
-        // Botón "Usuarios"
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .offset(y = 227.dp)
-                .requiredWidth(351.dp)
-                .requiredHeight(62.dp)
-                .clip(RoundedCornerShape(100.dp))
-                .background(Color(0xFF4CAF50)) // Ajusta el color según tu tema
-                .clickable { navController.navigate("adminUsuarios") }
-        ) {
-            Text(
-                text = "Usuarios",
-                color = Color.White,
-                textAlign = TextAlign.Center,
-                lineHeight = 1.43.em,
-                style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .wrapContentHeight(align = Alignment.CenterVertically)
-            )
-        }
-
-        // Botón "Locales"
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .offset(y = 326.dp)
-                .requiredWidth(351.dp)
-                .requiredHeight(62.dp)
-                .clip(RoundedCornerShape(100.dp))
-                .background(Color(0xFF4CAF50)) // Ajusta el color según tu tema
-                .clickable { navController.navigate("adminLugares") }
-        ) {
-            Text(
-                text = "Locales",
-                color = Color.White,
-                textAlign = TextAlign.Center,
-                lineHeight = 1.43.em,
-                style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .wrapContentHeight(align = Alignment.CenterVertically)
-            )
-        }
-
-        // Botón "Comentarios"
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .offset(y = 427.dp)
-                .requiredWidth(351.dp)
-                .requiredHeight(62.dp)
-                .clip(RoundedCornerShape(100.dp))
-                .background(Color(0xFF4CAF50)) // Ajusta el color según tu tema
-                .clickable { navController.navigate("adminComentarios") }
-        ) {
-            Text(
-                text = "Comentarios",
-                color = Color.White,
-                textAlign = TextAlign.Center,
-                lineHeight = 1.43.em,
-                style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .wrapContentHeight(align = Alignment.CenterVertically)
-            )
-        }
-
-        // Barra de navegación inferior (Rectangle16) - Reemplazado por Box
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .requiredHeight(63.dp)
-                .background(Color.LightGray) // Color temporal hasta que añadas la imagen
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Icono "Home" (Volver a ventHomeAdmin)
-                Icon(
-                    imageVector = Icons.Default.Home,
-                    contentDescription = "Home",
-                    tint = Color.Black,
-                    modifier = Modifier
-                        .requiredSize(48.dp)
-                        .clickable {
-                            navController.navigate("ventHomeAdmin") {
-                                popUpTo(navController.graph.startDestinationId) {
-                                    inclusive = false
-                                }
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
+                    label = { Text("Home") },
+                    selected = false,
+                    onClick = {
+                        navController.navigate("ventHomeAdmin") {
+                            popUpTo(navController.graph.startDestinationId) {
+                                inclusive = false
                             }
                         }
+                    }
                 )
-
-                // Icono "Image Avatar" (AdminUsuarios)
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = "Usuarios",
-                    tint = Color.Black,
-                    modifier = Modifier
-                        .requiredSize(48.dp)
-                        .clickable {
-                            navController.navigate("adminUsuarios")
-                        }
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Person, contentDescription = "Usuarios") },
+                    label = { Text("Usuarios") },
+                    selected = false,
+                    onClick = {
+                        navController.navigate("adminUsuarios")
+                    }
                 )
-
-                // Icono "Message Square" (AdminComentarios)
-                Icon(
-                    imageVector = Icons.Default.Message,
-                    contentDescription = "Comentarios",
-                    tint = Color.Black,
-                    modifier = Modifier
-                        .requiredSize(48.dp)
-                        .clickable {
-                            navController.navigate("adminComentarios")
-                        }
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Message, contentDescription = "Comentarios") },
+                    label = { Text("Comentarios") },
+                    selected = false,
+                    onClick = {
+                        navController.navigate("adminComentarios")
+                    }
                 )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Edit, contentDescription = "Solicitudes") },
+                    label = { Text("Solicitudes") },
+                    selected = false,
+                    onClick = {
+                        navController.navigate("adminSolicitudes")
+                    }
+                )
+            }
+        }
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .background(MaterialTheme.colorScheme.background)
+        ) {
+            // Rectángulo de fondo del encabezado (Rectangle15) - Reemplazado por Box
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .requiredHeight(90.dp)
+                    .background(MaterialTheme.colorScheme.primary)
+            )
 
-                // Icono "Pencil 01" (AdminSolicitudes)
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = "Solicitudes",
-                    tint = Color.Black,
+            // Texto "LOCMABAR" en el encabezado
+            Text(
+                text = "LOCMABAR",
+                color = MaterialTheme.colorScheme.onPrimary,
+                textAlign = TextAlign.Center,
+                lineHeight = 1.43.em,
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = 33.dp)
+                    .wrapContentHeight(align = Alignment.CenterVertically)
+            )
+
+            if (cargandoAdmin) {
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center)
+                )
+                Text(
+                    text = "Verificando permisos...",
+                    fontSize = 14.sp,
                     modifier = Modifier
-                        .requiredSize(48.dp)
-                        .clickable {
-                            navController.navigate("adminSolicitudes") // Eliminado ?tab=3
-                        }
+                        .align(Alignment.Center)
+                        .offset(y = 40.dp)
+                )
+                return@Box
+            }
+
+            if (user == null || !isAdmin) {
+                Text(
+                    text = "Acceso denegado. Solo para administradores.",
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 16.sp,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(16.dp)
+                )
+                Button(
+                    onClick = { navController.navigate("login") },
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .offset(y = 40.dp)
+                        .fillMaxWidth(0.8f)
+                ) {
+                    Text("Iniciar Sesión")
+                }
+                return@Box
+            }
+
+            // Botón "Solicitudes"
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = 137.dp)
+                    .requiredWidth(351.dp)
+                    .requiredHeight(62.dp)
+                    .clip(RoundedCornerShape(100.dp))
+                    .background(MaterialTheme.colorScheme.primary)
+                    .clickable { navController.navigate("adminSolicitudes") }
+            ) {
+                Text(
+                    text = "Solicitudes",
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 1.43.em,
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .wrapContentHeight(align = Alignment.CenterVertically)
+                )
+            }
+
+            // Botón "Usuarios"
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = 227.dp)
+                    .requiredWidth(351.dp)
+                    .requiredHeight(62.dp)
+                    .clip(RoundedCornerShape(100.dp))
+                    .background(MaterialTheme.colorScheme.primary)
+                    .clickable { navController.navigate("adminUsuarios") }
+            ) {
+                Text(
+                    text = "Usuarios",
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 1.43.em,
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .wrapContentHeight(align = Alignment.CenterVertically)
+                )
+            }
+
+            // Botón "Locales"
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = 326.dp)
+                    .requiredWidth(351.dp)
+                    .requiredHeight(62.dp)
+                    .clip(RoundedCornerShape(100.dp))
+                    .background(MaterialTheme.colorScheme.primary)
+                    .clickable { navController.navigate("adminLugares") }
+            ) {
+                Text(
+                    text = "Locales",
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 1.43.em,
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .wrapContentHeight(align = Alignment.CenterVertically)
+                )
+            }
+
+            // Botón "Comentarios"
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = 427.dp)
+                    .requiredWidth(351.dp)
+                    .requiredHeight(62.dp)
+                    .clip(RoundedCornerShape(100.dp))
+                    .background(MaterialTheme.colorScheme.primary)
+                    .clickable { navController.navigate("adminComentarios") }
+            ) {
+                Text(
+                    text = "Comentarios",
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 1.43.em,
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .wrapContentHeight(align = Alignment.CenterVertically)
                 )
             }
         }

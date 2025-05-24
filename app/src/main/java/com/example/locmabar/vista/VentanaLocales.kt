@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.location.LocationManager
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,7 +20,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.locmabar.modelo.ComunidadAutonoma
@@ -31,11 +34,8 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
-import com.google.android.gms.maps.model.CameraPosition
-import com.google.android.gms.maps.model.LatLng
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import com.google.maps.android.compose.*
 import kotlinx.coroutines.launch
 import java.io.InputStreamReader
 import java.net.URLEncoder
@@ -238,251 +238,318 @@ fun Ventana2(navController: NavHostController) {
             }
         }
     ) { innerPadding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .background(MaterialTheme.colorScheme.background)
         ) {
-            Text("Bares y Restaurantes Cercanos", fontSize = 20.sp)
-            Spacer(modifier = Modifier.height(16.dp))
+            // Barra superior
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .requiredHeight(90.dp)
+                    .background(MaterialTheme.colorScheme.primary)
+            )
 
-            if (cargando) {
-                CircularProgressIndicator()
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("Cargando lugares...", fontSize = 14.sp)
-            } else {
-                if (permisoDenegado) {
-                    Text(
-                        text = "Permiso de ubicación denegado. Selecciona comunidad, provincia y municipio manualmente o revisa los permisos en Configuración.",
-                        fontSize = 14.sp,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                    Button(
-                        onClick = {
-                            contexto.startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                data = android.net.Uri.fromParts("package", contexto.packageName, null)
-                            })
-                        },
-                        modifier = Modifier.padding(top = 8.dp)
-                    ) {
-                        Text("Ir a Configuración")
-                    }
-                }
+            // Texto "LOCMABAR" en la barra superior
+            Text(
+                text = "LOCMABAR",
+                color = MaterialTheme.colorScheme.onPrimary,
+                textAlign = TextAlign.Center,
+                lineHeight = 1.43.em,
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = 33.dp)
+                    .wrapContentHeight(align = Alignment.CenterVertically)
+            )
 
-                if (falloUbicacion) {
-                    Text(
-                        text = errorMensaje.ifEmpty { "No se pudo obtener la ubicación. Asegúrate de que los servicios de ubicación estén habilitados." },
-                        fontSize = 14.sp,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                    Button(
-                        onClick = {
-                            contexto.startActivity(Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS))
-                        },
-                        modifier = Modifier.padding(top = 8.dp)
-                    ) {
-                        Text("Activar ubicación")
-                    }
-                    Button(
-                        onClick = { mostrarDialogoUbicacion = true },
-                        modifier = Modifier.padding(top = 8.dp)
-                    ) {
-                        Text("Reintentar permiso")
-                    }
-                }
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = 90.dp, start = 16.dp, end = 16.dp, bottom = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("Bares y Restaurantes Cercanos", fontSize = 20.sp)
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // Desplegables estáticos en una fila con botón de búsqueda
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Selector de comunidad autónoma
-                    ExposedDropdownMenuBox(
-                        expanded = expandirComunidad,
-                        onExpandedChange = { expandirComunidad = !expandirComunidad },
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(end = 8.dp)
-                    ) {
-                        TextField(
-                            value = comunidadSeleccionada,
-                            onValueChange = {},
-                            label = { Text("Comunidad Autónoma") },
-                            readOnly = true,
-                            modifier = Modifier
-                                .menuAnchor()
-                                .fillMaxWidth()
+                if (cargando) {
+                    CircularProgressIndicator()
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Cargando lugares...", fontSize = 14.sp)
+                } else {
+                    if (permisoDenegado) {
+                        Text(
+                            text = "Permiso de ubicación denegado. Selecciona comunidad, provincia y municipio manualmente o revisa los permisos en Configuración.",
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(bottom = 8.dp)
                         )
-                        ExposedDropdownMenu(
-                            expanded = expandirComunidad,
-                            onDismissRequest = { expandirComunidad = false }
+                        Button(
+                            onClick = {
+                                contexto.startActivity(Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                    data = android.net.Uri.fromParts("package", contexto.packageName, null)
+                                })
+                            },
+                            modifier = Modifier.padding(top = 8.dp)
                         ) {
-                            comunidadesNombres.forEach { comunidad ->
-                                DropdownMenuItem(
-                                    text = { Text(comunidad) },
-                                    onClick = {
-                                        comunidadSeleccionada = comunidad
-                                        expandirComunidad = false
-                                    }
-                                )
-                            }
+                            Text("Ir a Configuración")
                         }
                     }
 
-                    // Selector de provincia
-                    ExposedDropdownMenuBox(
-                        expanded = expandirProvincia,
-                        onExpandedChange = { expandirProvincia = !expandirProvincia },
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(end = 8.dp)
-                    ) {
-                        TextField(
-                            value = provinciaSeleccionada,
-                            onValueChange = {},
-                            label = { Text("Provincia") },
-                            readOnly = true,
-                            modifier = Modifier
-                                .menuAnchor()
-                                .fillMaxWidth(),
-                            enabled = provincias.isNotEmpty()
+                    if (falloUbicacion) {
+                        Text(
+                            text = errorMensaje.ifEmpty { "No se pudo obtener la ubicación. Asegúrate de que los servicios de ubicación estén habilitados." },
+                            fontSize = 14.sp,
+                            modifier = Modifier.padding(bottom = 8.dp)
                         )
-                        ExposedDropdownMenu(
-                            expanded = expandirProvincia,
-                            onDismissRequest = { expandirProvincia = false }
+                        Button(
+                            onClick = {
+                                contexto.startActivity(Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                            },
+                            modifier = Modifier.padding(top = 8.dp)
                         ) {
-                            provincias.forEach { provincia ->
-                                DropdownMenuItem(
-                                    text = { Text(provincia) },
-                                    onClick = {
-                                        provinciaSeleccionada = provincia
-                                        expandirProvincia = false
-                                    }
-                                )
-                            }
+                            Text("Activar ubicación")
+                        }
+                        Button(
+                            onClick = { mostrarDialogoUbicacion = true },
+                            modifier = Modifier.padding(top = 8.dp)
+                        ) {
+                            Text("Reintentar permiso")
                         }
                     }
 
-                    // Selector de municipio
-                    ExposedDropdownMenuBox(
-                        expanded = expandirMunicipio,
-                        onExpandedChange = { expandirMunicipio = !expandirMunicipio },
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(end = 8.dp)
-                    ) {
-                        TextField(
-                            value = municipioSeleccionado,
-                            onValueChange = {},
-                            label = { Text("Municipio") },
-                            readOnly = true,
-                            modifier = Modifier
-                                .menuAnchor()
-                                .fillMaxWidth(),
-                            enabled = municipios.isNotEmpty()
-                        )
-                        ExposedDropdownMenu(
-                            expanded = expandirMunicipio,
-                            onDismissRequest = { expandirMunicipio = false }
-                        ) {
-                            municipios.forEach { municipio ->
-                                DropdownMenuItem(
-                                    text = { Text(municipio) },
-                                    onClick = {
-                                        municipioSeleccionado = municipio
-                                        expandirMunicipio = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-
-                    // Botón de búsqueda con icono de lupa
-                    IconButton(
-                        onClick = {
-                            if (comunidadSeleccionada.isNotEmpty() && provinciaSeleccionada.isNotEmpty() && municipioSeleccionado.isNotEmpty()) {
-                                cargando = true
-                                errorMensaje = ""
-                                coroutineScope.launch {
-                                    lugarRepository.obtenerLugaresPorMunicipio(provinciaSeleccionada, municipioSeleccionado) { resultado, error ->
-                                        lugares = resultado.filter { it.isValid() }
-                                        cargando = false
-                                        falloUbicacion = false
-                                        if (error != null) {
-                                            errorMensaje = error
-                                            return@obtenerLugaresPorMunicipio
-                                        }
-                                        if (resultado.isEmpty()) {
-                                            errorMensaje = "No se encontraron lugares en $municipioSeleccionado, $provinciaSeleccionada."
-                                        }
-                                    }
-                                }
-                            }
-                        },
-                        enabled = comunidadSeleccionada.isNotEmpty() && provinciaSeleccionada.isNotEmpty() && municipioSeleccionado.isNotEmpty(),
-                        modifier = Modifier.size(48.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Buscar",
-                            tint = if (comunidadSeleccionada.isNotEmpty() && provinciaSeleccionada.isNotEmpty() && municipioSeleccionado.isNotEmpty()) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                            }
-                        )
-                    }
-                }
-
-                if (lugares.isNotEmpty()) {
-                    LazyColumn(
+                    // Desplegables reorganizados: Comunidad y Provincia en una fila, Municipio y botón de búsqueda debajo
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(1f) // Para que ocupe el espacio disponible
+                            .padding(bottom = 16.dp)
                     ) {
-                        items(lugares) { lugar ->
-                            Card(
+                        // Fila para Comunidad Autónoma y Provincia
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Selector de comunidad autónoma
+                            ExposedDropdownMenuBox(
+                                expanded = expandirComunidad,
+                                onExpandedChange = { expandirComunidad = !expandirComunidad },
                                 modifier = Modifier
-                                    .padding(8.dp)
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        val latitud = latitudUsuario?.toString() ?: "0.0"
-                                        val longitud = longitudUsuario?.toString() ?: "0.0"
-                                        val route = "detallesBar/${lugar.id}?latitudUsuario=$latitud&longitudUsuario=$longitud"
-                                        println("Navigating to: $route with lugarId: ${lugar.id}")
-                                        try {
-                                            navController.navigate(route)
-                                        } catch (e: Exception) {
-                                            println("Navigation failed: ${e.message}")
-                                        }
-                                    }
+                                    .weight(1f)
+                                    .padding(end = 8.dp)
                             ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Text(
-                                        text = lugar.nombre ?: "Sin nombre",
-                                        fontSize = 18.sp,
-                                        fontWeight = FontWeight.Bold
+                                TextField(
+                                    value = comunidadSeleccionada,
+                                    onValueChange = {},
+                                    label = { Text("Comunidad Autónoma", color = MaterialTheme.colorScheme.onSurface) },
+                                    readOnly = true,
+                                    modifier = Modifier
+                                        .menuAnchor()
+                                        .fillMaxWidth()
+                                        .background(MaterialTheme.colorScheme.surface),
+                                    colors = TextFieldDefaults.colors(
+                                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurface
                                     )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = lugar.direccion ?: "Sin dirección",
-                                        fontSize = 14.sp
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = expandirComunidad,
+                                    onDismissRequest = { expandirComunidad = false }
+                                ) {
+                                    comunidadesNombres.forEach { comunidad ->
+                                        DropdownMenuItem(
+                                            text = { Text(comunidad) },
+                                            onClick = {
+                                                comunidadSeleccionada = comunidad
+                                                expandirComunidad = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Selector de provincia
+                            ExposedDropdownMenuBox(
+                                expanded = expandirProvincia,
+                                onExpandedChange = { expandirProvincia = !expandirProvincia },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = 8.dp)
+                            ) {
+                                TextField(
+                                    value = provinciaSeleccionada,
+                                    onValueChange = {},
+                                    label = { Text("Provincia", color = MaterialTheme.colorScheme.onSurface) },
+                                    readOnly = true,
+                                    modifier = Modifier
+                                        .menuAnchor()
+                                        .fillMaxWidth()
+                                        .background(MaterialTheme.colorScheme.surface),
+                                    enabled = provincias.isNotEmpty(),
+                                    colors = TextFieldDefaults.colors(
+                                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurface
                                     )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = "${lugar.municipio ?: "Sin municipio"}, ${lugar.provincia ?: "Sin provincia"}",
-                                        fontSize = 12.sp
-                                    )
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = expandirProvincia,
+                                    onDismissRequest = { expandirProvincia = false }
+                                ) {
+                                    provincias.forEach { provincia ->
+                                        DropdownMenuItem(
+                                            text = { Text(provincia) },
+                                            onClick = {
+                                                provinciaSeleccionada = provincia
+                                                expandirProvincia = false
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Fila para Municipio y botón de búsqueda
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Selector de municipio
+                            ExposedDropdownMenuBox(
+                                expanded = expandirMunicipio,
+                                onExpandedChange = { expandirMunicipio = !expandirMunicipio },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = 8.dp)
+                            ) {
+                                TextField(
+                                    value = municipioSeleccionado,
+                                    onValueChange = {},
+                                    label = { Text("Municipio", color = MaterialTheme.colorScheme.onSurface) },
+                                    readOnly = true,
+                                    modifier = Modifier
+                                        .menuAnchor()
+                                        .fillMaxWidth()
+                                        .background(MaterialTheme.colorScheme.surface),
+                                    enabled = municipios.isNotEmpty(),
+                                    colors = TextFieldDefaults.colors(
+                                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurface
+                                    )
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = expandirMunicipio,
+                                    onDismissRequest = { expandirMunicipio = false }
+                                ) {
+                                    municipios.forEach { municipio ->
+                                        DropdownMenuItem(
+                                            text = { Text(municipio) },
+                                            onClick = {
+                                                municipioSeleccionado = municipio
+                                                expandirMunicipio = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Botón de búsqueda con icono de lupa
+                            IconButton(
+                                onClick = {
+                                    if (comunidadSeleccionada.isNotEmpty() && provinciaSeleccionada.isNotEmpty() && municipioSeleccionado.isNotEmpty()) {
+                                        cargando = true
+                                        errorMensaje = ""
+                                        coroutineScope.launch {
+                                            lugarRepository.obtenerLugaresPorMunicipio(provinciaSeleccionada, municipioSeleccionado) { resultado, error ->
+                                                lugares = resultado.filter { it.isValid() }
+                                                cargando = false
+                                                falloUbicacion = false
+                                                if (error != null) {
+                                                    errorMensaje = error
+                                                    return@obtenerLugaresPorMunicipio
+                                                }
+                                                if (resultado.isEmpty()) {
+                                                    errorMensaje = "No se encontraron lugares en $municipioSeleccionado, $provinciaSeleccionada."
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                enabled = comunidadSeleccionada.isNotEmpty() && provinciaSeleccionada.isNotEmpty() && municipioSeleccionado.isNotEmpty(),
+                                modifier = Modifier.size(48.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = "Buscar",
+                                    tint = if (comunidadSeleccionada.isNotEmpty() && provinciaSeleccionada.isNotEmpty() && municipioSeleccionado.isNotEmpty()) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                                    }
+                                )
+                            }
+                        }
                     }
-                } else if (!cargando) {
-                    Text(errorMensaje.ifEmpty { "No se encontraron lugares." }, fontSize = 14.sp)
+
+                    if (lugares.isNotEmpty()) {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f) // Para que ocupe el espacio disponible
+                        ) {
+                            items(lugares) { lugar ->
+                                Card(
+                                    modifier = Modifier
+                                        .padding(8.dp)
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            val latitud = latitudUsuario?.toString() ?: "0.0"
+                                            val longitud = longitudUsuario?.toString() ?: "0.0"
+                                            val route = "detallesBar/${lugar.id}?latitudUsuario=$latitud&longitudUsuario=$longitud"
+                                            println("Navigating to: $route with lugarId: ${lugar.id}")
+                                            try {
+                                                navController.navigate(route)
+                                            } catch (e: Exception) {
+                                                println("Navigation failed: ${e.message}")
+                                            }
+                                        }
+                                ) {
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        Text(
+                                            text = lugar.nombre ?: "Sin nombre",
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = lugar.direccion ?: "Sin dirección",
+                                            fontSize = 14.sp
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "${lugar.municipio ?: "Sin municipio"}, ${lugar.provincia ?: "Sin provincia"}",
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    } else if (!cargando) {
+                        Text(errorMensaje.ifEmpty { "No se encontraron lugares." }, fontSize = 14.sp)
+                    }
                 }
             }
         }

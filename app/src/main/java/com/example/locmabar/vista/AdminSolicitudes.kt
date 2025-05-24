@@ -12,7 +12,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -99,203 +98,192 @@ fun AdminSolicitudes(navController: NavHostController) {
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White)
-    ) {
-        // Encabezado (igual que en VentHomeAdmin)
+    Scaffold(
+        bottomBar = {
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ) {
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
+                    label = { Text("Home") },
+                    selected = false,
+                    onClick = {
+                        navController.navigate("ventHomeAdmin") {
+                            popUpTo(navController.graph.startDestinationId) {
+                                inclusive = false
+                            }
+                        }
+                    }
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Person, contentDescription = "Usuarios") },
+                    label = { Text("Usuarios") },
+                    selected = false,
+                    onClick = {
+                        navController.navigate("adminUsuarios")
+                    }
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Message, contentDescription = "Comentarios") },
+                    label = { Text("Comentarios") },
+                    selected = false,
+                    onClick = {
+                        navController.navigate("adminComentarios")
+                    }
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Edit, contentDescription = "Solicitudes") },
+                    label = { Text("Solicitudes") },
+                    selected = true,
+                    onClick = {
+                        navController.navigate("adminSolicitudes")
+                    }
+                )
+            }
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    navController.navigate("adminLugares")
+                },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ) {
+                Icon(Icons.Default.Map, contentDescription = "Ir a Lugares")
+            }
+        }
+    ) { innerPadding ->
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .requiredHeight(90.dp)
-                .background(Color.DarkGray)
-        )
-
-        // Texto "LOCMABAR" en el encabezado
-        Text(
-            text = "LOCMABAR",
-            color = Color.White,
-            textAlign = TextAlign.Center,
-            lineHeight = 1.43.em,
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .offset(y = 33.dp)
-                .wrapContentHeight(align = Alignment.CenterVertically)
-        )
-
-        if (cargandoAdmin) {
-            CircularProgressIndicator(
-                modifier = Modifier.align(Alignment.Center)
-            )
-            Text(
-                text = "Verificando permisos...",
-                fontSize = 14.sp,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .offset(y = 40.dp)
-            )
-            return@Box
-        }
-
-        if (user == null || !isAdmin) {
-            Text(
-                text = "Acceso denegado. Solo para administradores.",
-                color = MaterialTheme.colorScheme.error,
-                fontSize = 16.sp,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(16.dp)
-            )
-            Button(
-                onClick = { navController.navigate("login") },
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .offset(y = 40.dp)
-                    .fillMaxWidth(0.8f)
-            ) {
-                Text("Iniciar Sesión")
-            }
-            return@Box
-        }
-
-        Column(
-            modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(innerPadding)
+                .background(MaterialTheme.colorScheme.background)
         ) {
-            Spacer(modifier = Modifier.height(90.dp)) // Espacio para el encabezado
+            // Encabezado (igual que en VentHomeAdmin)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .requiredHeight(90.dp)
+                    .background(MaterialTheme.colorScheme.primary)
+            )
 
-            if (cargando) {
-                CircularProgressIndicator()
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("Cargando solicitudes...", fontSize = 14.sp)
-            } else {
-                if (errorMensaje.isNotEmpty()) {
-                    Text(
-                        text = errorMensaje,
-                        color = MaterialTheme.colorScheme.error,
-                        fontSize = 16.sp,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
+            // Texto "LOCMABAR" en el encabezado
+            Text(
+                text = "SOLICITUDES",
+                color = MaterialTheme.colorScheme.onPrimary,
+                textAlign = TextAlign.Center,
+                lineHeight = 1.43.em,
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = 33.dp)
+                    .wrapContentHeight(align = Alignment.CenterVertically)
+            )
+
+            if (cargandoAdmin) {
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center)
+                )
+                Text(
+                    text = "Verificando permisos...",
+                    fontSize = 14.sp,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .offset(y = 40.dp)
+                )
+                return@Box
+            }
+
+            if (user == null || !isAdmin) {
+                Text(
+                    text = "Acceso denegado. Solo para administradores.",
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 16.sp,
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(16.dp)
+                )
+                Button(
+                    onClick = { navController.navigate("login") },
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .offset(y = 40.dp)
+                        .fillMaxWidth(0.8f)
+                ) {
+                    Text("Iniciar Sesión")
                 }
+                return@Box
+            }
 
-                if (solicitudes.isEmpty()) {
-                    Text(
-                        text = "No hay solicitudes pendientes.",
-                        fontSize = 16.sp,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Spacer(modifier = Modifier.height(90.dp)) // Espacio para el encabezado
+
+                if (cargando) {
+                    CircularProgressIndicator()
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Cargando solicitudes...", fontSize = 14.sp)
                 } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f) // Para que ocupe el espacio disponible
-                    ) {
-                        items(solicitudes) { solicitud ->
-                            Card(
-                                modifier = Modifier
-                                    .padding(8.dp)
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        navController.navigate("adminDatosSolicitudes/${solicitud.id}")
-                                    },
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Text(
-                                        text = solicitud.nombre ?: "Sin nombre",
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = "Dirección: ${solicitud.direccion ?: "Sin dirección"}",
-                                        fontSize = 14.sp,
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = "${solicitud.municipio ?: "Sin municipio"}, ${solicitud.provincia ?: "Sin provincia"}",
-                                        fontSize = 14.sp,
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                                    )
+                    if (errorMensaje.isNotEmpty()) {
+                        Text(
+                            text = errorMensaje,
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 16.sp,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+                    }
+
+                    if (solicitudes.isEmpty()) {
+                        Text(
+                            text = "No hay solicitudes pendientes.",
+                            fontSize = 16.sp,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f) // Para que ocupe el espacio disponible
+                        ) {
+                            items(solicitudes) { solicitud ->
+                                Card(
+                                    modifier = Modifier
+                                        .padding(8.dp)
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            navController.navigate("adminDatosSolicitudes/${solicitud.id}")
+                                        },
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                                ) {
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        Text(
+                                            text = solicitud.nombre ?: "Sin nombre",
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "Dirección: ${solicitud.direccion ?: "Sin dirección"}",
+                                            fontSize = 14.sp,
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "${solicitud.municipio ?: "Sin municipio"}, ${solicitud.provincia ?: "Sin provincia"}",
+                                            fontSize = 14.sp,
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
-        }
-
-        // Barra de navegación inferior (igual que en VentHomeAdmin)
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .requiredHeight(63.dp)
-                .background(Color.LightGray)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Icono "Home" (Volver a ventHomeAdmin)
-                Icon(
-                    imageVector = Icons.Default.Home,
-                    contentDescription = "Home",
-                    tint = Color.Black,
-                    modifier = Modifier
-                        .requiredSize(48.dp)
-                        .clickable {
-                            navController.navigate("ventHomeAdmin") {
-                                popUpTo(navController.graph.startDestinationId) {
-                                    inclusive = false
-                                }
-                            }
-                        }
-                )
-
-                // Icono "Image Avatar" (AdminUsuarios)
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = "Usuarios",
-                    tint = Color.Black,
-                    modifier = Modifier
-                        .requiredSize(48.dp)
-                        .clickable {
-                            navController.navigate("adminUsuarios")
-                        }
-                )
-
-                // Icono "Message Square" (AdminComentarios)
-                Icon(
-                    imageVector = Icons.Default.Message,
-                    contentDescription = "Comentarios",
-                    tint = Color.Black,
-                    modifier = Modifier
-                        .requiredSize(48.dp)
-                        .clickable {
-                            navController.navigate("adminComentarios")
-                        }
-                )
-
-                // Icono "Pencil 01" (AdminSolicitudes)
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = "Solicitudes",
-                    tint = Color.Black,
-                    modifier = Modifier
-                        .requiredSize(48.dp)
-                        .clickable {
-                            navController.navigate("adminSolicitudes")
-                        }
-                )
             }
         }
     }

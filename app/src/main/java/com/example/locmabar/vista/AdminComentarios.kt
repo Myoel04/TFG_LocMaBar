@@ -11,7 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -25,6 +24,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.tasks.await
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminComentarios(navController: NavHostController) {
     var comentarios by remember { mutableStateOf<List<Comentario>>(emptyList()) }
@@ -50,175 +50,146 @@ fun AdminComentarios(navController: NavHostController) {
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White)
-    ) {
-        // Encabezado (igual que en VentHomeAdmin)
+    Scaffold(
+        bottomBar = {
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ) {
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Home, contentDescription = "Home") },
+                    label = { Text("Home") },
+                    selected = false,
+                    onClick = {
+                        navController.navigate("ventHomeAdmin") {
+                            popUpTo(navController.graph.startDestinationId) {
+                                inclusive = false
+                            }
+                        }
+                    }
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Person, contentDescription = "Usuarios") },
+                    label = { Text("Usuarios") },
+                    selected = false,
+                    onClick = {
+                        navController.navigate("adminUsuarios")
+                    }
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Message, contentDescription = "Comentarios") },
+                    label = { Text("Comentarios") },
+                    selected = true,
+                    onClick = {
+                        navController.navigate("adminComentarios")
+                    }
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Edit, contentDescription = "Solicitudes") },
+                    label = { Text("Solicitudes") },
+                    selected = false,
+                    onClick = {
+                        navController.navigate("adminSolicitudes?tab=3")
+                    }
+                )
+            }
+        }
+    ) { innerPadding ->
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .requiredHeight(90.dp)
-                .background(Color.DarkGray)
-        )
-
-        // Texto "LOCMABAR" en el encabezado
-        Text(
-            text = "LOCMABAR",
-            color = Color.White,
-            textAlign = TextAlign.Center,
-            lineHeight = 1.43.em,
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .offset(y = 33.dp)
-                .wrapContentHeight(align = Alignment.CenterVertically)
-        )
-
-        Column(
-            modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(innerPadding)
+                .background(MaterialTheme.colorScheme.background)
         ) {
-            Spacer(modifier = Modifier.height(90.dp)) // Espacio para el encabezado
-
-            Text(
-                text = "Comentarios Pendientes",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 16.dp)
+            // Encabezado (igual que en VentHomeAdmin)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .requiredHeight(90.dp)
+                    .background(MaterialTheme.colorScheme.primary)
             )
 
-            if (cargando) {
-                CircularProgressIndicator()
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("Cargando comentarios...", fontSize = 14.sp)
-            } else {
-                if (errorMensaje.isNotEmpty()) {
-                    Text(
-                        text = errorMensaje,
-                        color = MaterialTheme.colorScheme.error,
-                        fontSize = 16.sp,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
-                }
+            // Texto "LOCMABAR" en el encabezado
+            Text(
+                text = "COMENTARIOS PENDIENTES",
+                color = MaterialTheme.colorScheme.onPrimary,
+                textAlign = TextAlign.Center,
+                lineHeight = 1.43.em,
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .offset(y = 33.dp)
+                    .wrapContentHeight(align = Alignment.CenterVertically)
+            )
 
-                if (comentarios.isEmpty()) {
-                    Text(
-                        text = "No hay comentarios pendientes.",
-                        fontSize = 16.sp,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Spacer(modifier = Modifier.height(90.dp)) // Espacio para el encabezado
+
+                if (cargando) {
+                    CircularProgressIndicator()
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Cargando comentarios...", fontSize = 14.sp)
                 } else {
-                    LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                        items(comentarios) { comentario ->
-                            Card(
-                                modifier = Modifier
-                                    .padding(8.dp)
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        navController.navigate("adminDatosComentarios/${comentario.id}")
-                                    },
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Text(
-                                        text = comentario.texto,
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = "Usuario: ${comentario.usuarioId}",
-                                        fontSize = 14.sp,
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = "Fecha: ${
-                                            comentario.fechaCreacion?.toDate()?.let {
-                                                SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(it)
-                                            } ?: "Desconocida"
-                                        }",
-                                        fontSize = 14.sp,
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                                    )
+                    if (errorMensaje.isNotEmpty()) {
+                        Text(
+                            text = errorMensaje,
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 16.sp,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+                    }
+
+                    if (comentarios.isEmpty()) {
+                        Text(
+                            text = "No hay comentarios pendientes.",
+                            fontSize = 16.sp,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+                    } else {
+                        LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                            items(comentarios) { comentario ->
+                                Card(
+                                    modifier = Modifier
+                                        .padding(8.dp)
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            navController.navigate("adminDatosComentarios/${comentario.id}")
+                                        },
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                                ) {
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        Text(
+                                            text = comentario.texto,
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "Usuario: ${comentario.usuarioId}",
+                                            fontSize = 14.sp,
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "Fecha: ${
+                                                comentario.fechaCreacion?.toDate()?.let {
+                                                    SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(it)
+                                                } ?: "Desconocida"
+                                            }",
+                                            fontSize = 14.sp,
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
-        }
-
-        // Barra de navegación inferior (igual que en VentHomeAdmin)
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .requiredHeight(63.dp)
-                .background(Color.LightGray)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Icono "Home" (Volver a ventHomeAdmin)
-                Icon(
-                    imageVector = Icons.Default.Home,
-                    contentDescription = "Home",
-                    tint = Color.Black,
-                    modifier = Modifier
-                        .requiredSize(48.dp)
-                        .clickable {
-                            navController.navigate("ventHomeAdmin") {
-                                popUpTo(navController.graph.startDestinationId) {
-                                    inclusive = false
-                                }
-                            }
-                        }
-                )
-
-                // Icono "Image Avatar" (AdminUsuarios)
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = "Usuarios",
-                    tint = Color.Black,
-                    modifier = Modifier
-                        .requiredSize(48.dp)
-                        .clickable {
-                            navController.navigate("adminUsuarios")
-                        }
-                )
-
-                // Icono "Message Square" (AdminComentarios)
-                Icon(
-                    imageVector = Icons.Default.Message,
-                    contentDescription = "Comentarios",
-                    tint = Color.Black,
-                    modifier = Modifier
-                        .requiredSize(48.dp)
-                        .clickable {
-                            navController.navigate("adminComentarios")
-                        }
-                )
-
-                // Icono "Pencil 01" (AdminSolicitudes)
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = "Solicitudes",
-                    tint = Color.Black,
-                    modifier = Modifier
-                        .requiredSize(48.dp)
-                        .clickable {
-                            navController.navigate("adminSolicitudes?tab=3")
-                        }
-                )
             }
         }
     }
