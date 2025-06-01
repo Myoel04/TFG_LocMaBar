@@ -232,6 +232,16 @@ fun VentanaPerfil(navController: NavHostController) {
                 }
                 Spacer(modifier = Modifier.height(8.dp))
 
+                // Botón para Donar a LocMaBar (sin funcionalidad)
+                Button(
+                    onClick = { /* Sin funcionalidad */ },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Text("Donar a LocMaBar")
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+
                 // Botón para Eliminar Cuenta (Opcional, solo para usuarios no administradores)
                 if (usuario!!.rol != "admin") {
                     Button(
@@ -286,7 +296,7 @@ fun VentanaPerfil(navController: NavHostController) {
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("Sí") // Ajustado para que sea más claro
+                    Text("Sí")
                 }
             },
             dismissButton = {
@@ -294,7 +304,7 @@ fun VentanaPerfil(navController: NavHostController) {
                     onClick = { mostrarDialogoEliminar = false },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
-                    Text("No") // Ajustado para que sea más claro
+                    Text("No")
                 }
             }
         )
