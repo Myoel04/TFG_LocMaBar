@@ -1,4 +1,4 @@
-Bienvenido al repositorio de LocMaBar, una aplicación móvil pensada para ayudar a encontrar bares y restaurantes locales, sobre todo en pueblos pequeños de España, de forma fácil y segura.
+LocMaBar es una aplicación móvil pensada para ayudar a encontrar bares y restaurantes locales, sobre todo en pueblos pequeños de España, de forma fácil y segura.
 
 Descripción
 LocMaBar es una app para móviles Android que permite descubrir bares cercanos usando la ubicación, ver opiniones de otros y sugerir nuevos sitios. Ayuda a los usuarios a explorar lugares locales y apoya a negocios pequeños con información confiable.
@@ -15,8 +15,17 @@ Servicios de Google: Ayuda con la ubicación y mapas.
 Instalación
 Para probar LocMaBar en tu equipo, sigue estos pasos:
 
-Copia el repositorio: git clone https://github.com/tu-usuario/locmabar.git
+Copia el repositorio:
+bash
+
+Contraer
+
+Ajuste
+
+Ejecutar
+
+Copiar
+git clone https://github.com/tu-usuario/locmabar.git
 Abre el proyecto en Android Studio.
 Sincroniza con Gradle y resuelve las dependencias.
 Ejecuta la app en un emulador o móvil Android.
-¡Todos pueden colaborar y mejorar la app!
