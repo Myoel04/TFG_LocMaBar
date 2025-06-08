@@ -271,9 +271,6 @@ fun Ventana2(navController: NavHostController) {
                     .padding(top = 90.dp, start = 16.dp, end = 16.dp, bottom = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text("Bares y Restaurantes Cercanos", fontSize = 20.sp)
-                Spacer(modifier = Modifier.height(16.dp))
-
                 if (cargando) {
                     CircularProgressIndicator()
                     Spacer(modifier = Modifier.height(8.dp))
