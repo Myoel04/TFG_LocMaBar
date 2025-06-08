@@ -1,3 +1,4 @@
+## LOCMABAR - Aplicación para la búsqueda de bares y restaurantes
 Bienvenido al repositorio de la aplicación LocMaBar, una plataforma móvil diseñada para ayudar a descubrir bares y restaurantes locales, especialmente en pueblos pequeños de España, de forma fácil y segura.
 
 ## Descripción
